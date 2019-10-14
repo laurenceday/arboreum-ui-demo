@@ -21,7 +21,7 @@ library(aws.signature)
 #    The sample file included in the Git-Hub distribution is blank; nothing will work
 #       until you supply the missing information and move it to the app's parent directory or elsewhere.
 
-source("../../credentials.R", local=TRUE)
+source("../credentials.R", local=TRUE)
 
 # Note: to make sure this file can't be served up on your web server, you can
 #    move it into the parent folder of your server root like this:

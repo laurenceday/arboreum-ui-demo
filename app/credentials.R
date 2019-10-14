@@ -4,9 +4,9 @@
 #      allow it to be visible on your web site.
 
 ### Put your data here
-admin_email_address <- ""       # Email address and password for the
-admin_password <- ""            #    initial administrator superuser account
-site_name <- ""                 # Displayed at upper left on all pages in this design; also used in emails
+admin_email_address <- "laurence.e.day@outlook.com" # Email address and password for the
+admin_password <- "root"                            # initial administrator superuser account
+site_name <- "arboreum.dev"                 # Displayed at upper left on all pages in this design; also used in emails
 
 ### To send email with the Amazon Simple Email Service api:
 #   To obtain the needed credentials, log into the AWS console. In "AWS services" choose
@@ -29,11 +29,11 @@ site_name <- ""                 # Displayed at upper left on all pages in this d
 #   the acceptable strings shown in the SESregion comment below.
 
 # Amazon SES credentials
-SESkey <- ""
-SESsecret <- ""
-SESregion <- ""            # The region of your SES server (us-east-1, us-west-2, or eu-west-1)
+SESkey      <- ""
+SESsecret   <- ""
+SESregion   <- ""           # The region of your SES server (us-east-1, us-west-2, or eu-west-1)
 SESfromName <- ""
-SESfromAdr <- ""           # Default "From" name and address. Address must be AWS verified.
+SESfromAdr  <- ""           # Default "From" name and address. Address must be AWS verified.
 
 ### debugging
 page_debug_on <- TRUE      # if TRUE, prints some debugging info to the console or server log
