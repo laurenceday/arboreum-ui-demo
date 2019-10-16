@@ -81,6 +81,10 @@ output$pageStub <- renderUI({rv$limn; isolate({
                         #    Other pages here embed the returns in the code rather than using a
                         #    variable that is returned at the end of the code. Either way is ok.
 
+observeEvent(input$mackTrust, {
+   session$userdata$mackTrust <- input$mackTrust
+})
+
 # This observer is for initial registration
 observeEvent(input$register_btn, {
    username <- str_replace_all(input$username, "[^[:alnum:]]", "")       # make username alpahnumeric...

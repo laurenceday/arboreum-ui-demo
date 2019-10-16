@@ -155,6 +155,7 @@ site_pages <- rbind(site_pages, tibble(name="login",        sp=0))     # in term
 site_pages <- rbind(site_pages, tibble(name="logout",       sp=0))     #    required to open the page.
 site_pages <- rbind(site_pages, tibble(name="profile",      sp=0))
 site_pages <- rbind(site_pages, tibble(name="lostpassword", sp=0))
+site_pages <- rbind(site_pages, tibble(name="demo_1",       sp=1))
 site_pages <- rbind(site_pages, tibble(name="admin",        sp=500))   # only users with sp>=500 can open this page
 
 pageGet <- function(webpage) {
@@ -256,6 +257,13 @@ server <- function(input, output, session) {
    rv$logout <- 0              # needed for logout.R page
    rv$modal_warning <- 0       # used with an observer below to bring up modal warning dialogs
 
+### Variables used by the demo
+   session$userData$mackTrust     <- 0
+   session$userData$gauravTrust   <- 0
+   session$userData$laurenceTrust <- 0
+   session$userData$pranavTrust   <- 0
+   session$userData$amountDeposit <- 100
+   
 
 # Functions for running javascript on the browser
 #   Because these communicate using the session object, they have to be in the server.
@@ -355,8 +363,7 @@ server <- function(input, output, session) {
                d <- paste0(d, " | <a href='?admin'>Admin</a>")
             }
             return(paste0("<h5 style='float: right;'><a href='?home'>Home</a> | ",
-                      "<a href='http://www.open-meta.org/technology/multi-page-url-based-shiny-web-site-skeleton-with-authentication/'>Blog</a> | ",
-                      "<a href='https://github.com/open-meta/om_skeleton/tree/master/app'>GitHub</a> | ",
+                          "<a href='?demo_1'>Demo</a> | ",
                        d,
                       "</h5>"))
       }
