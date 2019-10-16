@@ -4,10 +4,6 @@
 
 ### libraries
 library(shiny)
-#library(shinythemes)
-#library(shinyBS)
-#library(V8)            # Needed by shinyjs; allows server to run javascript
-#library(shinyjs)
 library(stringr)
 library(dplyr)
 library(lubridate)
@@ -156,6 +152,7 @@ site_pages <- rbind(site_pages, tibble(name="logout",       sp=0))     #    requ
 site_pages <- rbind(site_pages, tibble(name="profile",      sp=0))
 site_pages <- rbind(site_pages, tibble(name="lostpassword", sp=0))
 site_pages <- rbind(site_pages, tibble(name="demo_1",       sp=1))
+site_pages <- rbind(site_pages, tibble(name="demo_2",       sp=1))
 site_pages <- rbind(site_pages, tibble(name="admin",        sp=500))   # only users with sp>=500 can open this page
 
 pageGet <- function(webpage) {
@@ -206,28 +203,28 @@ ui <- fluidPage(
       tags$head(
          tags$script(src="js.cookie.js"),
          tags$script(HTML("
-Shiny.addCustomMessageHandler('redirect', function(url) {
-   window.location = url;
-});
-
-Shiny.addCustomMessageHandler('setCookie', function(pList) {
-   if(pList.days>0) {
-      Cookies.set(pList.cookieType, escape(pList.cookie), { expires: pList.days });
-   } else {
-      Cookies.set(pList.cookieType, escape(pList.cookie));
-   }
-});
-
-Shiny.addCustomMessageHandler('getCookie', function(pList) {
-   var cookie = Cookies.get(pList.cookieType);
-   if (typeof cookie == 'undefined') { cookie = ''; }
-   Shiny.onInputChange('js.'.concat(pList.cookieType), cookie);
-});
-
-Shiny.addCustomMessageHandler('removeCookie', function(pList) {
-   Cookies.remove(pList.cookieType);
-});
-")),
+            Shiny.addCustomMessageHandler('redirect', function(url) {
+               window.location = url;
+            });
+            
+            Shiny.addCustomMessageHandler('setCookie', function(pList) {
+               if(pList.days>0) {
+                  Cookies.set(pList.cookieType, escape(pList.cookie), { expires: pList.days });
+               } else {
+                  Cookies.set(pList.cookieType, escape(pList.cookie));
+               }
+            });
+            
+            Shiny.addCustomMessageHandler('getCookie', function(pList) {
+               var cookie = Cookies.get(pList.cookieType);
+               if (typeof cookie == 'undefined') { cookie = ''; }
+               Shiny.onInputChange('js.'.concat(pList.cookieType), cookie);
+            });
+            
+            Shiny.addCustomMessageHandler('removeCookie', function(pList) {
+               Cookies.remove(pList.cookieType);
+            });
+            ")),
       uiOutput("uiStub")                   # the actual page will get attached here
       )
    )
@@ -263,6 +260,7 @@ server <- function(input, output, session) {
    session$userData$laurenceTrust <- 0
    session$userData$pranavTrust   <- 0
    session$userData$amountDeposit <- 100
+   session$userData$stage2        <- FALSE
    
 
 # Functions for running javascript on the browser
@@ -357,13 +355,12 @@ server <- function(input, output, session) {
          if(session$userData$user$sp==0) {
                d <- "<a href='?login'>Login</a>"
             } else {
-               d <- "<a href='?profile'>Profile</a> | <a href='?logout'>Logout</a>"
+               d <- "<a href='?logout'>Logout</a>"
             }
             if(session$userData$user$sp >=500) {
                d <- paste0(d, " | <a href='?admin'>Admin</a>")
             }
-            return(paste0("<h5 style='float: right;'><a href='?home'>Home</a> | ",
-                          "<a href='?demo_1'>Demo</a> | ",
+            return(paste0("<h5 style='float: right;'><a href='?demo_1'>Demo</a> | ",
                        d,
                       "</h5>"))
       }
@@ -378,7 +375,7 @@ server <- function(input, output, session) {
       webpage <- "?home"                                 #    ...null means issues to solve
       cat("\nWARNING: session$clientData$url_search was null, substituting home.R\n\n")
    }
-   if(webpage=="") { webpage <- "?home" }                # blank means home page
+   if(webpage=="") { webpage <- "?demo_1" }                # blank means home page
    webpage <- substr(webpage, 2, nchar(webpage))         # remove leading "?", add ".R"
    p <- pageGet(webpage)
    if(p$name != ""){                                     # is that one of our files?

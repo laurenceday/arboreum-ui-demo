@@ -196,6 +196,6 @@ observeEvent(input$amountDeposit, {
 })
 
 observeEvent(input$stage2, {
-  if (session$userData$inLimits) {print("good to go")} else { showNotification("You are extending more credit to someone than you have deposited. Please adjust your numbers appropriately.", type="error") }
+  if (session$userData$inLimits) {js$redirect("?demo_2")} else { showNotification("You are extending more credit to someone than you have deposited. Please adjust your numbers appropriately.", type="error") }
 })
 
