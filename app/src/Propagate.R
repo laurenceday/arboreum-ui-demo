@@ -154,6 +154,7 @@ cnsm.ZR.backsolve <- function(ntwk, v, orgn.brw.mtx, S.out = list(),
   }
   rm(S.out)
   
+  S.indx <- which(!S.TF)
   #Iterate through S.mtx, Rc, & Zc, update wgt.Vec, rate.Vec, and scrt.Vec, optimize missing value (C)
   optim.C <- function(r, z) {
     P <- risk.Mtx
@@ -167,13 +168,12 @@ cnsm.ZR.backsolve <- function(ntwk, v, orgn.brw.mtx, S.out = list(),
     Z[indx.c] <- z
     
     #eliminate rows with 0 amounts to be sold
-    S.TF <- which(!S.TF)
-    if(length(S.TF)>0) {
-      P <- P[-indx.s[S.TF],]
-      W <- W[-indx.s[S.TF]]
-      R <- R[-indx.s[S.TF]]
-      Z <- Z[-indx.s[S.TF]]
-      indx.mtx <- -indx.s[S.TF]
+    if(length(S.indx)>0) {
+      P <- P[-indx.s[S.indx],]
+      W <- W[-indx.s[S.indx]]
+      R <- R[-indx.s[S.indx]]
+      Z <- Z[-indx.s[S.indx]]
+      indx.mtx <- -indx.s[S.indx]
     } else {
       indx.mtx <- c(1:nrow(corr.mtx))
     }
