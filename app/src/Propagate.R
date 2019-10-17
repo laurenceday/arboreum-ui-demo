@@ -558,6 +558,7 @@ cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),zLim = 0.99, rLi
   
   #Iterate through S.mtx, Rc, & Zc, update wgt.Vec, rate.Vec, and scrt.Vec, optimize missing value (C)
   optim.C <- function(r, z) {
+    print(paste0('Optimising interest rate ', r, ' and collateral ', z))
     P <- risk.Mtx
     W <- lent.Vec
     R <- rate.Vec

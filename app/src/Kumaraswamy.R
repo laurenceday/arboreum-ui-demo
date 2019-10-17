@@ -58,6 +58,7 @@ optim.Kumar <- function(corr.mtx, P.in,
                         algorithm = "NLOPT_LN_COBYLA", controls = list(),
                         S.FN = c(), relax = FALSE, browse = FALSE) {
   
+  print(paste0('Kumaraswamy optimisation running...'))
   #Determine which missing values to optimize
   W.optim <- c()
   R.optim <- c()
