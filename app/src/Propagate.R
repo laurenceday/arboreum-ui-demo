@@ -713,7 +713,7 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
   #Extract amounts for v.in
   amt.in <- c()
   for(i in c(1:length(v.in))){
-    amt.in[i] <-  predict(smooth.loess(S.list[[v.in[i]]]), as.data.frame(list(R=Rate,Z=Collateral)))
+    amt.in[i] <-  stats::predict(smooth.loess(S.list[[v.in[i]]]), as.data.frame(list(R=Rate,Z=Collateral)))
   }
   #Normalize by amount borrowed
   subnet.DF[v.in.indx,3] <- Amt*amt.in/sum(amt.in)
@@ -747,7 +747,7 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
     #Extract consumptions amounts for v.in -> scale amount sold
     amt.in <- c()
     for(i in c(1:length(v.in))){
-      amt.in[i] <-  predict(smooth.loess(S.list[[v.in[i]]]), as.data.frame(list(R=rslt$R,Z=rslt$Z)))
+      amt.in[i] <-  stats::predict(smooth.loess(S.list[[v.in[i]]]), as.data.frame(list(R=rslt$R,Z=rslt$Z)))
     }
     
     #Normalize by amount borrowed
