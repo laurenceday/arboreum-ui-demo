@@ -147,8 +147,8 @@ cnsm.ZR.backsolve <- function(ntwk, v, orgn.brw.mtx, S.out = list(),
     v.brw.s <- v.brw[S.TF]
     S.FN <- list()
     for(i in c(1:length(v.brw.s))) { #alternative option is to create separate model for each matrix
-      S.FN[[i]] <- lapply(S.out[v.s %in% v.brw.s[i]],smooth.loess)  
-      #S.FN[[i]] <- smooth.loess(Reduce('+', S.out[v.s %in% v.brw.s[i]])) #reduce and create one model
+      #S.FN[[i]] <- lapply(S.out[v.s %in% v.brw.s[i]],smooth.loess)  
+      S.FN[[i]] <- smooth.loess(Reduce('+', S.out[v.s %in% v.brw.s[i]])) #reduce and create one model
     }
     names(S.FN) <- v.brw.s
   }
