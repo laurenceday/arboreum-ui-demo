@@ -118,7 +118,8 @@ calcRiskArray <- function(ntwk, ntwk.attr = 'Risk', direction = 'out', max.depth
       } else { #make exception for original trust values
         prpg.trust.Mtx <-prpg.trust.Mtx[prpg.trust.Mtx$Dest %in% setdiff(prpg.trust.Mtx$Dest, amt.trust.Mtx$Dest),
                                         c('Dest', 'Trust.dest')]
-        amt.trust.Mtx[c((nrow(amt.trust.Mtx)+1):(nrow(amt.trust.Mtx)+nrow(prpg.trust.Mtx))),] <- prpg.trust.Mtx[, c(1,2)]
+        if (nrow(prpg.trust.Mtx) > 0) 
+        {amt.trust.Mtx[c((nrow(amt.trust.Mtx)+1):(nrow(amt.trust.Mtx)+nrow(prpg.trust.Mtx))),] <- prpg.trust.Mtx[, c(1,2)]}
         if(length(unique(amt.trust.Mtx[[1]]))<nrow(amt.trust.Mtx)) {browser()}
         return (amt.trust.Mtx[, c('Dest', 'Trust.dest')])
       }
@@ -131,9 +132,9 @@ calcRiskArray <- function(ntwk, ntwk.attr = 'Risk', direction = 'out', max.depth
   
   #Indirect Trust between all members
   edges.Mtx <- stats::setNames(as.data.frame(network::as.edgelist(ntwk, attrname = c(ntwk.attr), as.sna.edgelist = TRUE)),
-                        c('from', 'to', ntwk.attr)) %>% 
+                               c('from', 'to', ntwk.attr)) %>% 
     dplyr::left_join(stats::setNames(as.data.frame(network::as.edgelist(ntwk, attrname = c(paste0(ntwk.attr, '.coef')), as.sna.edgelist = TRUE)),
-                              c('from', 'to', paste0(ntwk.attr, '.coef')))) %>% 
+                                     c('from', 'to', paste0(ntwk.attr, '.coef')))) %>% 
     dplyr::left_join(igraph::as_long_data_frame(ntwk.i) %>% dplyr::select(from, to, from_deg, to_deg)) %>%
     arrange(from, to)
   edges.Mtx <- as.matrix(edges.Mtx[complete.cases(edges.Mtx),])
@@ -175,7 +176,7 @@ calcRiskArray <- function(ntwk, ntwk.attr = 'Risk', direction = 'out', max.depth
   }
   
   #append to network
-  set.vertex.attribute(ntwk, 'Subj.risk', NA)
+  network::set.vertex.attribute(ntwk, 'Subj.risk', NA)
   for(v in c(1:n.vrt)) {
     mtx <- risk.array[v,,]
     indx <- which(!is.na(mtx[,1]))

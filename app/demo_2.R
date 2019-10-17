@@ -11,6 +11,12 @@ output$loanGrid      <- DT::renderDataTable(as.data.frame(matrix(0, ncol = 10, n
 source(here::here("app/src/Generate.R"), local=TRUE)
 source(here::here("app/src/Traverse.R"), local=TRUE)
  
+initialisedNetwork <- buildCorePeri(N = 50, K = 5)
+initialisedSheets  <- suppressWarnings(initializeSheets(initialisedNetwork, K = 5, A0 = 10000))
+
+baseNetwork        <- initialisedSheets[[2]]
+rsltCalc <- (calcRiskArray(baseNetwork))
+
 session$userData$computedLoan      <- FALSE
 session$userData$selectedLoan      <- FALSE
 session$userData$minLoanAmount     <- 0
