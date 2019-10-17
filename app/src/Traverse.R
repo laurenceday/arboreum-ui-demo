@@ -170,9 +170,10 @@ calcRiskArray <- function(ntwk, ntwk.attr = 'Risk', direction = 'out', max.depth
     muHat <- weighted.mean(x,1/wgt.j)
     varHat <- Hmisc::wtd.var(x,1/wgt.j)
     
-    risk.array[i, j,2] <- muHat^2*((1-muHat)/varHat-1/muHat)
-    risk.array[i, j,3] <- risk.array[i, j,2]*(1/muHat-1)
-    risk.array[i, j,4] <- risk.mtx[v]-muHat
+    risk.array[i, j,2] <- muHat^2*((1-muHat)/varHat-1/muHat) # alpha
+    risk.array[i, j,3] <- risk.array[i, j,2]*(1/muHat-1) # beta
+    risk.array[i, j,4] <- risk.mtx[v]-muHat # offset
+    if(any(!is.finite(risk.array[i,j,]))){browser()}
   }
   
   #append to network

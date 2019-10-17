@@ -58,7 +58,7 @@ ntwk2 <- rsltCalc[[2]]
 
 #borrowing potential of node X1
 #start_time <- Sys.time()
-brw.Potential <- loan.backProp(ntwk2, 3, algorithm ="NLOPT_GN_ISRES", browse = FALSE,
+brw.Potential <- loan.backProp(ntwk2, 1, algorithm ="NLOPT_GN_ISRES", browse = FALSE,
                                controls = list(controls = list(xtol_rel = 0.1, xtol_abs = c(rep(0.1,2),0.01,0.01),
                                                           relax = FALSE, maxeval = 1000, risk.coef = 'Bernoulli',
                                                           span = 0.5)))

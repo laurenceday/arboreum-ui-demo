@@ -8,8 +8,9 @@ library(network)
 
 output$loanGrid      <- DT::renderDataTable(as.data.frame(matrix(0, ncol = 10, nrow = 10)), selection=list(target='cell'))
 
-source(here::here("app/src/Generate.R"), local=TRUE)
-source(here::here("app/src/Traverse.R"), local=TRUE)
+source(here::here("app/src/Generate.R"))
+source(here::here("app/src/Propagate.R"))
+source(here::here("app/src/Traverse.R"))
  
 initialisedNetwork <- buildCorePeri(N = 50, K = 5)
 initialisedSheets  <- suppressWarnings(initializeSheets(initialisedNetwork, K = 5, A0 = 10000))

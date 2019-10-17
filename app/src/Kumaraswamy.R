@@ -265,6 +265,7 @@ optim.Kumar <- function(corr.mtx, P.in,
         Z <- RZ$Z
       }
       #simple case
+      m <- length(S.FN)
      if(m == 1) {
         if(class(S.FN[[1]])=="loess"){
           S <- S.intrp.set(S.FN[1], R, Z)
