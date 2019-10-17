@@ -178,12 +178,55 @@ initializeSheets <- function(ntwk, K, A0 = 1000, phi.a = 3, phi.b = 5, eps = 0.1
       ntwk[['val']][[v]]$Portfolio$security <- soln$Z
       ntwk[['val']][[v]]$Ptfl.kumPDF.a <- soln$K[1]
       ntwk[['val']][[v]]$Ptfl.kumPDF.b <- soln$K[2]
-      
-      ##Assemble Liabilities
-      
     }
   }
   
+  #Create Assets/Liabilities Dataframes from Portfolios
+  set.vertex.attribute(ntwk, 'Assets', NA)
+  set.vertex.attribute(ntwk, 'Liabilities', NA)
+  for(v in c(1:n.vrt)) {
+    if(is.na(ntwk[['val']][[v]]$Assets)){
+      ntwk[['val']][[v]]$Assets <- data.frame(borrower = numeric(),
+                                              via = numeric(),
+                                              via.trust = numeric(),
+                                              risk.coef=numeric(),
+                                              amount = numeric(),
+                                              rate = numeric(),
+                                              security = numeric())
+    }
+    
+    if(is.na(ntwk[['val']][[v]]$Liabilities)){
+      ntwk[['val']][[v]]$Liabilities <- data.frame(borrower = numeric(),
+                                                    via = numeric(),
+                                                    lender = numeric(),
+                                                    amount = numeric(),
+                                                    rate = numeric(),
+                                                    security = numeric())
+    }
+    
+    if(!all(is.na(ntwk[['val']][[v]]$Portfolio))){
+      ntwk[['val']][[v]]$Assets[c(1:nrow(ntwk[['val']][[v]]$Portfolio)),
+                                c('borrower','via.trust','risk.coef','amount','rate','security')] <- 
+              ntwk[['val']][[v]]$Portfolio[,c('to','tot.trust','Risk.coef','rate','security')]
+      ntwk[['val']][[v]]$Assets$via <- v
+    }
+  }
+  #Loop through assets and assemble corresponding liabilities
+  for(v in c(1:n.vrt)) {
+    if(nrow(ntwk[['val']][[v]]$Assets)>0){
+      for(i in c(1:nrow(ntwk[['val']][[v]]$Assets))){
+        borrower <- ntwk[['val']][[v]]$Assets$borrower[i]
+        newrow <- c('borrower'=borrower,
+                    'via'=v,
+                    'lender'=v,
+                    'amount'=ntwk[['val']][[v]]$Assets$amount[i],
+                    'rate'=ntwk[['val']][[v]]$Assets$rate[i],
+                    'security'=ntwk[['val']][[v]]$Assets$security[i])
+        ntwk[['val']][[borrower]]$Liabilities <- rbind(ntwk[['val']][[borrower]]$Liabilities,newrow)
+      } 
+    }
+  }                                  
+                                    
   trustLnt[is.na(trustLnt)] <- 0
   
   #Sum entrusted amounts to find total amount entrusted
