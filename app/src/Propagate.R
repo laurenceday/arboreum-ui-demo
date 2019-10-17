@@ -223,7 +223,7 @@ cnsm.ZR.backsolve <- function(ntwk, v, orgn.brw.mtx, S.out = list(),
   V <- big.matrix(length(Rc), length(Zc)*n.brw)
   desc <- bigmemory::describe(V)
   #parallel for loop
-  result = foreach(i = c(1:length(Rc)))%:%foreach(j = c(1:length(Zc)))%dopar%
+  result = foreach(i = c(1:length(Rc)), .export='optim.Kumar')%:%foreach(j = c(1:length(Zc)))%dopar%
   {
     V <- bigmemory::attach.big.matrix(desc)
     V[i, c(j:(j+n.brw-1))] <- optim.C(Rc[i], Zc[j])
