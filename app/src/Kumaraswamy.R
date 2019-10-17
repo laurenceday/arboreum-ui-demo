@@ -58,7 +58,6 @@ optim.Kumar <- function(corr.mtx, P.in,
                         algorithm = "NLOPT_LN_COBYLA", controls = list(),
                         S.FN = c(), relax = FALSE, browse = FALSE) {
   
-  print(paste0('Kumaraswamy optimisation running...'))
   #Determine which missing values to optimize
   W.optim <- c()
   R.optim <- c()
@@ -266,9 +265,12 @@ optim.Kumar <- function(corr.mtx, P.in,
         Z <- RZ$Z
       }
       #simple case
-      m <- length(S.FN)
-      if(m == 1) {
-        S <- S.intrp.set(S.FN[[1]], R, Z)
+     if(m == 1) {
+        if(class(S.FN[[1]])=="loess"){
+          S <- S.intrp.set(S.FN[1], R, Z)
+        } else {
+          S <- S.intrp.set(S.FN[[1]], R, Z)
+        }
         return (S)
       }
       
