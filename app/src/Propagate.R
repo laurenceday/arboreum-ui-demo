@@ -1,6 +1,8 @@
+import(stats)
 import(dplyr)
 import(doParallel)
 import(bigmemory)
+import(foreach)
 
 utils    <- modules::use(here::here("Utils.R"))
 
@@ -148,7 +150,8 @@ cnsm.ZR.backsolve <- function(ntwk, v, orgn.brw.mtx, S.out = list(),
     v.brw.s <- v.brw[S.TF]
     S.FN <- list()
     for(i in c(1:length(v.brw.s))) { #alternative option is to create separate model for each matrix
-      S.FN[[i]] <- smooth.loess(Reduce('+', S.out[v.s %in% v.brw.s[i]])) #reduce and create one model
+      S.FN[[i]] <- lapply(S.out[v.s %in% v.brw.s[i]],smooth.loess)  #reduce and create one model
+      #S.FN[[i]] <- smooth.loess(Reduce('+', S.out[v.s %in% v.brw.s[i]]))
     }
     names(S.FN) <- v.brw.s
   }
@@ -214,10 +217,10 @@ cnsm.ZR.backsolve <- function(ntwk, v, orgn.brw.mtx, S.out = list(),
   }
   
   #parallelize
-  no_cores <- detectCores() - 2  
+  no_cores <- parallel::detectCores() - 2  
   registerDoParallel(cores = no_cores)  
-  clst <- makeCluster(no_cores) #, type ="FORK")
-  on.exit(stopCluster(clst))
+  clst <- parallel::makeCluster(no_cores, type ="FORK")
+  on.exit(parallel::stopCluster(clst))
   #data storage object
   V <- big.matrix(length(Rc), length(Zc)*n.brw)
   desc <- describe(V)
@@ -407,3 +410,323 @@ loan.backProp <- function(ntwk, root,
   loess.fit <-loess(value~R+Z, df, control = loess.control(surface = 'direct'), span =.5, degree = 2) #tune
   return (list('root.S' = loess.fit, 'S.list' = S.out))
 }
+
+cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),
+                              algorithm ="NLOPT_GN_ISRES", controls = list(), browse = FALSE) {
+
+  browser()
+  #orgn.brw.mtx is a matrix with pairs of loan-originators amongst the neighborhood of v, 
+  #and borrowers(not necessarily in neighborhood of v)
+  v.orgn <- unique(orgn.brw.mtx[,1]) 
+  v.brw  <- unique(orgn.brw.mtx[,2])
+  i.brw  <- match(orgn.brw.mtx[,2], v.brw)
+  n.brw  <- length(v.brw)
+  
+  #Retrieve existing correlation matrix for portfolio of v
+  corr.mtx <- correlation$correlationUpdate(ntwk, v, v.brw, direction = 'in')
+  v.corr <- as.numeric(rownames(corr.mtx))
+  
+  #check if borrower currently in loan portfolio
+  v.brw.in.ptfl <- intersect(v.brw, v.corr)
+  if(length(v.brw.in.ptfl)>0) { #convert identifier to negative number if so
+    indx.b <- match(v.brw.in.ptfl, v.corr)
+    rownames(corr.mtx)[indx.b] <- -as.numeric(rownames(corr.mtx)[indx.b])
+    v.brw <- -1*v.brw
+    v.corr <- as.numeric(rownames(corr.mtx))
+  }
+  
+  #update correlation matrix to include purchases (consumption) from v.orgn and sales of v.brw
+  indx.c <- match(v.brw, v.corr) #consumption vectors #orgn.brw.mtx[,2]
+  indx.s <- match(v.brw, v.corr) #sales vectors
+  indx.v <- c(which(!(v.corr %in% v.brw)), indx.c, indx.s) #original portfolio
+  corr.mtx <- corr.mtx[indx.v, indx.v]
+  
+  #update indices denoting c and v in new matrix
+  indx.c <- c((nrow(corr.mtx)-length(indx.c)-length(indx.s)+1):(nrow(corr.mtx)-length(indx.s)))
+  indx.s <- c((nrow(corr.mtx)-length(indx.s)+1):nrow(corr.mtx))
+  corr.mtx[indx.s,] <- corr.mtx[indx.s,]*-1
+  corr.mtx[-indx.s, indx.s] <- corr.mtx[-indx.s, indx.s]*-1
+  diag(corr.mtx) <- 1
+  
+  #Retrieve existing portfolio of v
+  ptfl.DF <- ntwk[['val']][[v]]$Portfolio
+  ptfl.DF <- ptfl.DF[match(ptfl.DF$to, setdiff(v.corr, v.brw)),]
+  lent.Vec <- c(ptfl.DF$lent, rep(NA,2*length(v.brw))) #nrow(orgn.brw.mtx)+
+  rate.Vec <- c(ptfl.DF$rate, rep(NA,2*length(v.brw)))
+  scrt.Vec <- c(ptfl.DF$security, rep(NA,2*length(v.brw)))
+  v.brw <- abs(v.brw)
+  
+  #Retrieve subjective risk of borrower
+  #Below routine should be replaced with routine that computes risk on fly from all paths to borrower
+  #retrieve current risk, lent, rate, securitization vectors, update to include new borrower
+  risk.Mtx <- ntwk[['val']][[v]]$Subj.risk
+  risk.Mtx <- risk.Mtx[match(c(ptfl.DF$to, v.brw, v.brw), risk.Mtx$to),] #orgn.brw.mtx[,2]
+  risk.Mtx <- as.matrix(risk.Mtx[, c(2,3,4)])
+  P.indx <- c(1,2,3)
+  
+  #limit amount that can be lent
+  lend.lim <- with(ptfl.DF[match(orgn.brw.mtx[,1], ptfl.DF$to),], tot.trust-lent)
+  names(lend.lim) <- orgn.brw.mtx[,2]
+  lend.df <- as.data.frame(list(Orgn = orgn.brw.mtx[,1], Brw = orgn.brw.mtx[,2], lend.lim = lend.lim))%>%
+    group_by(Brw)%>%mutate(lend.pct = lend.lim/sum(lend.lim)) #to divy up consumption by originators
+  lend.lim <- rowsum(lend.lim, names(lend.lim)) #sum by borrower
+  open.fnd <- ntwk[['val']][[v]]$PtflAtRisk-sum(ptfl.DF$lent) #total unencumbered funds
+  lend.lim <- pmin(open.fnd*lend.lim/sum(lend.lim), lend.lim) #proportionally allocate by lend.lim (choose lowest)
+  lend.lim <- lend.lim[match(rownames(lend.lim), v.brw)] #put in correct order
+  
+  #parse controls
+  if('relax' %in% names(controls)) {
+    relax <- controls$relax
+    controls <- controls[-(names(controls) == 'relax')]
+  } else {
+    relax <- FALSE
+  } 
+  if('risk.coef' %in% names(controls)) {
+    if(controls$risk.coef == 'Bernoulli') {
+      P.indx <- 1
+    }
+    if(controls$risk.coef == 'Hybrid') {
+      risk.Mtx[-c(indx.c, indx.s), c(2,3)] <- NA
+    }
+    controls <- controls[-(names(controls) == 'risk.coef')]
+  }
+  if('span' %in% names(controls)) {
+    span <- controls$span
+    controls <- controls[-(names(controls) == 'span')]
+  } else {
+    span <-0.25
+  }
+  
+  #S is the downstream supply function for v.brw -> must coalesce & turn into LOESS smoothing functions
+  #smoothing function generator
+  smooth.loess <- function(C.ZR) {
+    C.ZR <- round(C.ZR,2)
+    df <-  reshape2::melt(add_rownames(as.data.frame(C.ZR, row.names = rownames(C.ZR)))) %>% 
+      mutate(R = as.numeric(rowname), Z = as.numeric(as.character(variable)))
+    
+    #add border cases
+    df <- rbind(df, c(0,0,0), c(1,1, max(df$value)))
+    loess.fit <-loess(value~R+Z, df, control = loess.control(surface = 'direct'), span = span, degree = 2) #tune
+    return (loess.fit)
+  }
+  S.TF <- c()
+  if(length(S.out) == 0) {
+    S.TF <- rep(FALSE, n.brw)
+    S.FN <- c()
+  } else {
+    #coalesce if multiple lists so length = n.brw
+    v.s <- as.numeric(sapply(strsplit(names(S.out), "\\."), "[", 2)) #loan supply functions in list
+    S.TF <- v.brw %in% v.s #for functions that don't match -> eliminate from S
+    v.brw.s <- v.brw[S.TF]
+    S.FN <- list()
+    for(i in c(1:length(v.brw.s))) { #alternative option is to create separate model for each matrix
+      S.FN[[i]] <- lapply(S.out[v.s %in% v.brw.s[i]],smooth.loess)  #reduce and create one model
+      #S.FN[[i]] <- smooth.loess(Reduce('+', S.out[v.s %in% v.brw.s[i]]))
+    }
+    names(S.FN) <- v.brw.s
+  }
+  rm(S.out)
+  
+  #Iterate through S.mtx, Rc, & Zc, update wgt.Vec, rate.Vec, and scrt.Vec, optimize missing value (C)
+  optim.C <- function(r, z) {
+    P <- risk.Mtx
+    W <- lent.Vec
+    R <- rate.Vec
+    Z <- scrt.Vec
+    
+    #set new values
+    W[indx.s] <- NA
+    R[indx.c] <- r
+    Z[indx.c] <- z
+    
+    #eliminate rows with 0 amounts to be sold
+    S.TF <- which(!S.TF)
+    if(length(S.TF)>0) {
+      P <- P[-indx.s[S.TF],]
+      W <- W[-indx.s[S.TF]]
+      R <- R[-indx.s[S.TF]]
+      Z <- Z[-indx.s[S.TF]]
+      indx.mtx <- -indx.s[S.TF]
+    } else {
+      indx.mtx <- c(1:nrow(corr.mtx))
+    }
+    #solve
+    soln <- kumaraswamy$optim.Kumar(corr.mtx[indx.mtx, indx.mtx],
+                                    P.in = P[, P.indx], W.in = W, R.in = R, Z.in = Z, 
+                                    Wlim = lend.lim, Rlim = rLim, S.FN = S.FN,
+                                    algorithm = algorithm, controls = controls, relax = relax, browse = browse)
+    
+    #FIX - at the moment only returns C (amount consumed), and not C+S (amount consumed+sold)
+    # -> FIXED! amount sold is soln$S
+    browser()
+    if(!is.na(soln$S)){
+      return (soln$W+soln$S) 
+    } else {
+      return (soln$W)
+    }
+  }
+  
+  #for debugging purposes
+  C.ZR[i, j] <- optim.C(Rc[i], Zc[j])
+
+  
+  #Divy results by lend.DF and store
+  cnt <- 1
+  rslt <- list()
+  for(i in c(1:n.brw)) {
+    C.ZR <- V[, c(seq(i,(length(Zc)-1)*n.brw, n.brw),(length(Zc)-1)*n.brw+i)]
+    rownames(C.ZR) <- Rc
+    colnames(C.ZR) <- Zc
+    i.brw <- which(lend.df$Brw == v.brw[i])
+    for(j in i.brw) {
+      C.ZR.i <- C.ZR*lend.df$lend.pct[j]
+      rslt[[cnt]] <- C.ZR.i
+      names(rslt)[cnt] <- paste0(v, '_', lend.df$Orgn[j], '.', lend.df$Brw[j])
+      cnt <- cnt+1
+    }
+  }
+  return (rslt)
+  
+  #Smooth result (for debugging purposes)
+  # z.loess <- matrix(predict(loess.fit.2, expand.grid(R = seq(1.01, rLim,0.01), Z = seq(0.01, zLim,0.01))),
+  #                   length(seq(1.01, rLim,0.01)), length(seq(0.01, zLim,0.01)))
+  # gam.fit <- gam(value ~ te(R, Z, bs = c("cs", "cs")), data = df)
+  # z.gam <- matrix(predict(gam.fit, expand.grid(R = seq(1.01, rLim,0.01), Z = seq(0.01, zLim,0.01))),
+  #                 length(seq(1.01, rLim,0.01)), length(seq(0.01, zLim,0.01)))
+  # persp3d(seq(1.01, rLim,0.01), seq(0.01, zLim,0.01), z.gam, col = 'skyblue')
+  # persp3d(seq(1.01, rLim,0.01), seq(0.01, zLim,0.01), z.gam-z.loess, col = 'skyblue')
+  # persp3d(seq(1.01, rLim,0.01), seq(0.01, zLim,0.01), z.loess, col = 'skyblue')
+}
+
+loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
+                           algorithm ="NLOPT_GN_ISRES",
+                           controls = list(risk.coef = 'Bernoulli', maxeval = 1000, span = 0.5),
+                           browse = FALSE){
+  
+  #fetch subgraph of v which is its largest connected component 
+  rtrv.lcl.Edgelist <- function(ntwk, v, max.dist = 10) {
+    
+    #fetch edgelist
+    edges.Mtx <- network::as.edgelist(ntwk, as.sna.edgelist = TRUE)[, c(1,2)]
+    colnames(edges.Mtx) <- c('from', 'to')
+    
+    #subgraph of v
+    v.bfs <- igraph::bfs(utils$ntwk2igraph.cvrt(ntwk),1, neimode = 'out', dist = TRUE, order = TRUE, father = TRUE, rank = TRUE, pred = TRUE)
+    x <- edges.Mtx[edges.Mtx[, 'to'] %in% which(v.bfs$dist>0),]
+    x <- x[x[, 'to']!= v,]
+    x <- x[x[, 'from'] %in% c(v, which(v.bfs$dist>0 & v.bfs$dist<max.dist)),]
+    
+    #Remove cycles
+    y <- unique(c(x[, c(1,2)]))
+    x[,1] <- match(x[,1], y)
+    x[,2] <- match(x[,2], y)
+    x.adj <- matrix(0, length(unique(c(x[, c(1,2)]))), length(unique(c(x[, c(1,2)]))))
+    x.adj[x[, c(1,2)]] <- 1
+    x.dag <- predictionet::adj.remove.cycles(x.adj, maxlength = 10)
+    x.dag <- which(x.dag$adjmat.acyclic>0, arr.ind = TRUE)
+    x.dag[,1] <- y[x.dag[,1]]
+    x.dag[,2] <- y[x.dag[,2]]
+    colnames(x.dag) <- c('from', 'to')
+    return (x.dag)
+  }
+  
+  #post-order depth-first-search for backprop order of above subgraph
+  postorder.DFS <- function(edgeList, root, max.depth = 10) {
+    v.visit <- c()
+    v.order <- c()
+    traverse.DFS <- function(v, cur.depth) {
+      v.visit <<- unique(c(v.visit, v))
+      cur.depth <- cur.depth+1
+      if(cur.depth<max.depth) {
+        for(v.new in edgeList[edgeList[, 'from']== v, 'to']) {
+          if(!(v.new %in% v.visit)) {
+            traverse.DFS(v.new, cur.depth = cur.depth)
+          }
+        }
+      }
+      v.order <<- c(v.order, v)
+    }
+    traverse.DFS(root, cur.depth = 0)
+    return (v.order)
+  }
+  
+  #Convert Matrix to loess smoothin function
+  smooth.loess <- function(C.ZR) {
+    C.ZR <- round(C.ZR,2)
+    df <-  reshape2::melt(add_rownames(as.data.frame(C.ZR, row.names = rownames(C.ZR)))) %>% 
+      mutate(R = as.numeric(rowname), Z = as.numeric(as.character(variable)))
+    
+    #add border cases
+    df <- rbind(df, c(0,0,0), c(1,1, max(df$value)))
+    loess.fit <-loess(value~R+Z, df, control = loess.control(surface = 'direct'), span = 0.5, degree = 2) #tune
+    return (loess.fit)
+  }
+  
+  #figure out order of node traversal
+  subntwk.EL <- rtrv.lcl.Edgelist(ntwk,root)
+  frwd.order <- setdiff(rev(postorder.DFS(subntwk.EL, root)),root)
+  
+  #If back.order is NULL then return
+  if(length(frwd.order)==0){
+    return(NULL)
+  }
+  
+  #Create dataframe with frwd.order and associated amounts lent to v
+  subnet.DF <- data.frame(subntwk.EL)
+  subnet.DF$Amt.C  <- NA
+  subnet.DF$Rate.C <- NA
+  subnet.DF$Scrt.C <- NA
+  subnet.DF$Amt.S  <- NA 
+  subnet.DF$Rate.S <- NA 
+  subnet.DF$Scrt.S <- NA 
+  subnet.DF$brw <- root
+  
+  #first vertices to propagate to
+  v.in <- paste0(subntwk.EL[subntwk.EL[, 'from']== root, 'to'], '_', root,'.',root)
+  v.indx <- match(sapply(strsplit(v.in, "\\."), "[", 1),paste0(subnet.DF[,2],'_',subnet.DF[,1]))
+  
+  #Extract amounts for v.in
+  amt.in <- c()
+  for(i in c(1:length(v.in))){
+    amt.in[i] <-  predict(smooth.loess(S.list[[v.in[i]]]), as.data.frame(list(R=Rate,Z=Collateral)))
+  }
+  #Normalize by amount borrowed
+  subnet.DF[v.indx,3] <- Amt*amt.in/sum(amt.in)
+  subnet.DF[v.indx,4] <- Rate
+  subnet.DF[v.indx,5] <- Collateral
+  
+  #Iterate over frwd.order
+  for(v in frwd.order){
+    
+    #create prop.mtx
+    prop.mtx <- as.matrix(subnet.DF[subnet.DF[, 'to']== v,
+                                    c('brw','from','to','Amt.R','Rate.C','Scrt.C')]) #loan assets coming in
+
+    #vertices to propagate to
+    v.in <- paste0(subntwk.EL[subntwk.EL[, 'from']== v, 'to'], '_', v,'.',root)
+    v.indx <- match(as.numeric(sapply(strsplit(v.in, "_"), "[", 1)),subnet.DF[,1])
+    
+    #Optimize to determine Amount Sold, Sell Rate, and Sell Collateral
+    rslt <- cnsm.ZR.frwdsolve(ntwk,v, prop.mtx, S.out = S.list[v.in],
+                              algorithm=algorithm, controls=controls, browse=browse)
+    browser()
+    
+    #Extract amounts for v.in
+    amt.in <- c()
+    for(i in c(1:length(v.in))){
+      amt.in[i] <-  predict(smooth.loess(S.list[[v.out[i]]]), as.data.frame(list(R=Rate,Z=Collateral)))
+    }
+    
+    #Normalize by amount borrowed
+    subnet.DF[v.indx,3] <- Amt*amt.in/sum(amt.in)
+    subnet.DF[v.indx,4] <- Rate
+    subnet.DF[v.indx,5] <- Collateral
+  }
+  
+  
+  
+  browser()
+}
+  
+  
+
