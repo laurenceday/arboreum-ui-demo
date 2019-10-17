@@ -1,6 +1,6 @@
-library(stats)
-library(nleqslv)
-library(nloptr)
+import(stats)
+import(nleqslv)
+import(nloptr)
 
 #method of moments solver for kumaraswamy distribution
 kumar.MoM <- function(mu, vr) {
@@ -53,7 +53,7 @@ optim.Kumar <- function(corr.mtx, P.in,
                         W.in = NA, R.in = NA, Z.in = NA,
                         Wlim = 0, Rlim = 3, Zlim = 0.01,
                         k.alpha = 0.05, z.alpha = 0.05,
-                        penalty.RZ = 0, elastic.RZ = 0.5,
+                        penalty.RZ = 0, elastic.RZ = 0.5,Clim=NA,
                         algorithm = "NLOPT_LN_COBYLA", controls = list(),
                         S.FN = c(), relax = FALSE, browse = FALSE) {
   
@@ -69,7 +69,14 @@ optim.Kumar <- function(corr.mtx, P.in,
   Z.TF <- FALSE
   K.TF <- TRUE
   S.TF <- FALSE
+  C.TF <- FALSE
   n.S <- 0
+  n.C <- 0
+  
+  if(all(!is.na(Clim))){
+    C.TF <- TRUE
+    n.C <- length(Clim)
+  }
   
   #S.FN if present is a list of functions yielding supply curve (denoted by the last elements of argument vectors)
   if(length(S.FN)>0 & is.list(S.FN)) {
@@ -151,16 +158,16 @@ optim.Kumar <- function(corr.mtx, P.in,
   if(S.TF) {
     #for rates
     RS.indx <- R.indx[R.optim %in% S.optim]
-    LB.opt[RS.indx] <- 0.005
-    UB.opt[RS.indx] <- R.in[W.optim]-1-0.005
+    LB.opt[RS.indx] <- 0.000001
+    UB.opt[RS.indx] <- R.in[W.optim]-1-0.000001
     X0.opt[RS.indx] <- LB.opt[RS.indx]+(UB.opt[RS.indx]-LB.opt[RS.indx])/2+runif(length(RS.indx),-0.05,0.05)
     X0.opt[RS.indx][X0.opt[RS.indx]<LB.opt[RS.indx]] <- LB.opt[RS.indx]
     X0.opt[RS.indx][X0.opt[RS.indx]>UB.opt[RS.indx]] <- UB.opt[RS.indx]
     
     #for securitication
     ZS.indx <- Z.indx[Z.optim %in% S.optim]
-    LB.opt[ZS.indx] <- Z.in[W.optim]-(1-0.005) #negative because securitization increases
-    UB.opt[ZS.indx] <- -0.005
+    LB.opt[ZS.indx] <- Z.in[W.optim]-(1-0.001) #negative because securitization increases
+    UB.opt[ZS.indx] <- -0.001
     X0.opt[ZS.indx] <- LB.opt[ZS.indx]+(UB.opt[ZS.indx]+LB.opt[ZS.indx])/2+runif(length(ZS.indx),-0.05,0.05)
     X0.opt[ZS.indx][X0.opt[ZS.indx]<LB.opt[ZS.indx]] <- LB.opt[ZS.indx]
     X0.opt[ZS.indx][X0.opt[ZS.indx]>UB.opt[ZS.indx]] <- UB.opt[ZS.indx]
@@ -259,7 +266,7 @@ optim.Kumar <- function(corr.mtx, P.in,
       #simple case
       m <- length(S.FN)
       if(m == 1) {
-        S <- S.intrp.set(S.FN[1], R, Z)
+        S <- S.intrp.set(S.FN[[1]], R, Z)
         return (S)
       }
       
@@ -701,7 +708,7 @@ optim.Kumar <- function(corr.mtx, P.in,
     params <- opt.update.WRZ (X) 
     
     #calculate jacobian
-    jcb.mtx <- matrix(0, nrow = 3+n.S, ncol = n.opt)
+    jcb.mtx <- matrix(0, nrow = 3+n.S+n.C, ncol = n.opt)
     
     #for optimization params
     if(W.TF) {
@@ -745,8 +752,26 @@ optim.Kumar <- function(corr.mtx, P.in,
       
       #constraint jacobian
       jcb.mtx[c(4:(3+n.S)), W.indx] <- 1 
-      jcb.mtx[c(4:(3+n.S)), ZS.indx] <- -W[S.optim] 
+      #jcb.mtx[c(4:(3+n.S)), ZS.indx] <- -W[S.optim]
+      jcb.mtx[c(4:(3+n.S)), ZS.indx] <- -(W[S.optim]+Z[S.optim]*S.dZ.intrp(R[S.optim],Z[S.optim])) 
+      jcb.mtx[c(4:(3+n.S)), RS.indx] <- -Z[S.optim]*S.dR.intrp(R[S.optim],Z[S.optim]) 
     }
+    #New constraint: amount purchased+amountSold == Total Consumed
+    if(C.TF){
+      #constraint values
+      cnsm.ineq <- W[W.optim]+W[S.optim]-Clim
+      cnst <- c(cnst, cnsm.ineq)
+      
+      #constraint jacobian
+      jcb.mtx[c((4+n.S):(3+n.S+n.C)), W.indx] <- 1 
+      jcb.mtx[c((4+n.S):(3+n.S+n.C)), ZS.indx] <- S.dZ.intrp(R[S.optim],Z[S.optim])
+      jcb.mtx[c((4+n.S):(3+n.S+n.C)), RS.indx] <- S.dR.intrp(R[S.optim],Z[S.optim])
+      
+      #Repeat with negative side
+      cnst <- c(cnst, -cnsm.ineq)
+      jcb.mtx <- rbind(jcb.mtx,-jcb.mtx[c((4+n.S):(3+n.S+n.C)),])
+    }
+    
     return (list('constraints' = cnst, 'jacobian' = jcb.mtx))
   }
   
