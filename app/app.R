@@ -375,7 +375,7 @@ server <- function(input, output, session) {
       webpage <- "?home"                                 #    ...null means issues to solve
       cat("\nWARNING: session$clientData$url_search was null, substituting home.R\n\n")
    }
-   if(webpage=="") { webpage <- "?demo_1" }                # blank means home page
+   if(webpage=="") { webpage <- "?home" }                # blank means home page
    webpage <- substr(webpage, 2, nchar(webpage))         # remove leading "?", add ".R"
    p <- pageGet(webpage)
    if(p$name != ""){                                     # is that one of our files?
