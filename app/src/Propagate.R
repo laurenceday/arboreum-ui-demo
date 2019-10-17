@@ -107,7 +107,7 @@ cnsm.ZR.backsolve <- function(ntwk, v, orgn.brw.mtx, S.out = list(),
   #parse controls
   if('relax' %in% names(controls)) {
     relax <- controls$relax
-    controls <- controls[-(names(controls) == 'relax')]
+    controls <- controls[!(names(controls) == 'relax')]
   } else {
     relax <- FALSE
   } 
@@ -118,11 +118,11 @@ cnsm.ZR.backsolve <- function(ntwk, v, orgn.brw.mtx, S.out = list(),
     if(controls$risk.coef == 'Hybrid') {
       risk.Mtx[-c(indx.c, indx.s), c(2,3)] <- NA
     }
-    controls <- controls[-(names(controls) == 'risk.coef')]
+    controls <- controls[!(names(controls) == 'risk.coef')]
   }
   if('span' %in% names(controls)) {
     span <- controls$span
-    controls <- controls[-(names(controls) == 'span')]
+    controls <- controls[!(names(controls) == 'span')]
   } else {
     span <-0.25
   }
@@ -150,8 +150,8 @@ cnsm.ZR.backsolve <- function(ntwk, v, orgn.brw.mtx, S.out = list(),
     v.brw.s <- v.brw[S.TF]
     S.FN <- list()
     for(i in c(1:length(v.brw.s))) { #alternative option is to create separate model for each matrix
-      S.FN[[i]] <- lapply(S.out[v.s %in% v.brw.s[i]],smooth.loess)  #reduce and create one model
-      #S.FN[[i]] <- smooth.loess(Reduce('+', S.out[v.s %in% v.brw.s[i]]))
+      S.FN[[i]] <- lapply(S.out[v.s %in% v.brw.s[i]],smooth.loess)  
+      #S.FN[[i]] <- smooth.loess(Reduce('+', S.out[v.s %in% v.brw.s[i]])) #reduce and create one model
     }
     names(S.FN) <- v.brw.s
   }
@@ -219,7 +219,8 @@ cnsm.ZR.backsolve <- function(ntwk, v, orgn.brw.mtx, S.out = list(),
   #parallelize
   no_cores <- parallel::detectCores() - 2  
   registerDoParallel(cores = no_cores)  
-  clst <- parallel::makeCluster(no_cores, type ="FORK")
+  ostype <- if (Sys.info()[['sysname']] == 'Windows') {"PSOCK"} else {"FORK"}
+  clst <- parallel::makeCluster(no_cores, type = ostype)
   on.exit(parallel::stopCluster(clst))
   #data storage object
   V <- big.matrix(length(Rc), length(Zc)*n.brw)
@@ -283,7 +284,8 @@ cnsm.ZR.backsolve <- function(ntwk, v, orgn.brw.mtx, S.out = list(),
 loan.backProp <- function(ntwk, root,
                           zLim = 0.99, rLim = 2.5, r.mesh = 0.025, z.mesh = 0.025,
                           algorithm ="NLOPT_GN_ISRES",
-                          controls = list(risk.coef = 'Bernoulli', maxeval = 1000, span = 0.5),
+                          controls = list(maxeval = 1000, span = 0.5,xtol_rel=0.1,
+                                          xtol_abs=c(0.5,0.01,0.01,0.001,0.001), span=0.5),
                           browse = FALSE) {
   
   #fetch subgraph of v which is its largest connected component 
@@ -359,6 +361,8 @@ loan.backProp <- function(ntwk, root,
     #required vertices for backsolving
     v.out <- paste0(subntwk.EL[subntwk.EL[, 'from']== v, 'to'], '_', v)
     
+    print(paste0('Back-Prop to ',v,' from {',paste(subntwk.EL[subntwk.EL[, 'from']== v, 'to'],collapse=',') ,'}'))
+    
     #current vertices in S.out
     if(length(S.out) == 0) {
       v.S <- integer(0)
@@ -411,16 +415,44 @@ loan.backProp <- function(ntwk, root,
   return (list('root.S' = loess.fit, 'S.list' = S.out))
 }
 
-cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),
-                              algorithm ="NLOPT_GN_ISRES", controls = list(), browse = FALSE) {
+#' After borrower chooses loan terms, propagates amounts and solves for portfoliios of rest of nodes, along with 
+#' amounts transferred/propagated to other nodes
+#' 
+#' @param ntwk - network object (of class network)
+#' @param v - node for whom to solve optimization problem
+#' @param prop.mtx - matrix with the pairs of loan-propagators within the neighborhood of v and the original borrower (not necessarily in neighborhood of v)
+#' @param S.out - list of loess functions that output amount demanded downstream given rate (R) and securitization (Z)
+#' @param rLim - maximum loan rate
+#' @param algorithm - non-linear optimization algorithm, either NLOPT_LN_COBYLA or NLOPT_GN_ISRES (see documentation for nloptr for details)
+#' @param controls - optimization control parameters (see documentation for nloptr for details)
+#' @param browse - TRUE/FALSE to invoked browser (for debugging purposes)
+#'
+#' @return Matrix of amount of debt purchased for grid returned by r.mesh and z.mesh
+#' @export
+#'
+#' @examples
+cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),zLim = 0.99, rLim = 2.5,
+                              algorithm ="NLOPT_GN_ISRES", 
+                              controls = list(maxeval=5000,xtol_rel=0.1,xtol_abs=c(0.01,0.01,0.01,0.001,0.001)), 
+                              browse = FALSE) {
 
-  browser()
   #orgn.brw.mtx is a matrix with pairs of loan-originators amongst the neighborhood of v, 
   #and borrowers(not necessarily in neighborhood of v)
-  v.orgn <- unique(orgn.brw.mtx[,1]) 
-  v.brw  <- unique(orgn.brw.mtx[,2])
-  i.brw  <- match(orgn.brw.mtx[,2], v.brw)
+  v.brw  <- unique(prop.mtx[,1])
+  v.orgn <- unique(prop.mtx[,2]) 
+  i.brw  <- match(prop.mtx[,1], v.brw)
   n.brw  <- length(v.brw)
+  
+  #Combine if multiple sources
+  if(nrow(prop.mtx)<2){
+    Consumed <- prop.mtx[,'Amt.C']
+    Rate <- prop.mtx[,'Rate.C']
+    Collateral <- prop.mtx[,'Scrt.C'] 
+  } else {
+    Consumed <- sum(prop.mtx[,'Amt.C'])
+    Rate <- weighted.mean(prop.mtx[,'Rate.C'],prop.mtx[,'Amt.C'])
+    Collateral <- weighted.mean(prop.mtx[,'Scrt.C'],prop.mtx[,'Amt.C'])
+  }
   
   #Retrieve existing correlation matrix for portfolio of v
   corr.mtx <- correlation$correlationUpdate(ntwk, v, v.brw, direction = 'in')
@@ -465,10 +497,10 @@ cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),
   P.indx <- c(1,2,3)
   
   #limit amount that can be lent
-  lend.lim <- with(ptfl.DF[match(orgn.brw.mtx[,1], ptfl.DF$to),], tot.trust-lent)
-  names(lend.lim) <- orgn.brw.mtx[,2]
-  lend.df <- as.data.frame(list(Orgn = orgn.brw.mtx[,1], Brw = orgn.brw.mtx[,2], lend.lim = lend.lim))%>%
-    group_by(Brw)%>%mutate(lend.pct = lend.lim/sum(lend.lim)) #to divy up consumption by originators
+  lend.lim <- with(ptfl.DF[match(prop.mtx[,2], ptfl.DF$to),], tot.trust-lent)
+  names(lend.lim) <- prop.mtx[,1]
+  lend.df <- as.data.frame(list(Orgn = prop.mtx[,2], Brw = prop.mtx[,2], lend.lim = lend.lim))%>%
+              group_by(Brw)%>%mutate(lend.pct = lend.lim/sum(lend.lim)) #to divy up consumption by originators
   lend.lim <- rowsum(lend.lim, names(lend.lim)) #sum by borrower
   open.fnd <- ntwk[['val']][[v]]$PtflAtRisk-sum(ptfl.DF$lent) #total unencumbered funds
   lend.lim <- pmin(open.fnd*lend.lim/sum(lend.lim), lend.lim) #proportionally allocate by lend.lim (choose lowest)
@@ -477,7 +509,7 @@ cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),
   #parse controls
   if('relax' %in% names(controls)) {
     relax <- controls$relax
-    controls <- controls[-(names(controls) == 'relax')]
+    controls <- controls[!(names(controls) == 'relax')]
   } else {
     relax <- FALSE
   } 
@@ -488,11 +520,11 @@ cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),
     if(controls$risk.coef == 'Hybrid') {
       risk.Mtx[-c(indx.c, indx.s), c(2,3)] <- NA
     }
-    controls <- controls[-(names(controls) == 'risk.coef')]
+    controls <- controls[!(names(controls) == 'risk.coef')]
   }
   if('span' %in% names(controls)) {
     span <- controls$span
-    controls <- controls[-(names(controls) == 'span')]
+    controls <- controls[!(names(controls) == 'span')]
   } else {
     span <-0.25
   }
@@ -551,56 +583,51 @@ cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),
       indx.mtx <- c(1:nrow(corr.mtx))
     }
     #solve
-    soln <- kumaraswamy$optim.Kumar(corr.mtx[indx.mtx, indx.mtx],
-                                    P.in = P[, P.indx], W.in = W, R.in = R, Z.in = Z, 
-                                    Wlim = lend.lim, Rlim = rLim, S.FN = S.FN,
-                                    algorithm = algorithm, controls = controls, relax = relax, browse = browse)
+    soln <- tryCatch({
+              kumaraswamy$optim.Kumar(corr.mtx[indx.mtx, indx.mtx],
+                                      P.in = P[, P.indx], W.in = W, R.in = R, Z.in = Z, 
+                                      Wlim = lend.lim, Rlim = rLim, S.FN = S.FN, Clim = Consumed,
+                                      algorithm = algorithm, controls = controls, relax = relax, browse = browse)
+            }, error = function(e) {
+              browser()
+              kumaraswamy$optim.Kumar(corr.mtx[indx.mtx, indx.mtx],
+                                      P.in = P[, P.indx], W.in = W, R.in = R, Z.in = Z, 
+                                      Wlim = lend.lim, Rlim = rLim, S.FN = S.FN, Clim = Consumed,
+                                      algorithm = algorithm, controls = controls, relax = relax, browse = browse)
+              browser()
+            })
     
-    #FIX - at the moment only returns C (amount consumed), and not C+S (amount consumed+sold)
-    # -> FIXED! amount sold is soln$S
-    browser()
-    if(!is.na(soln$S)){
-      return (soln$W+soln$S) 
-    } else {
-      return (soln$W)
-    }
+    soln$R <- r-soln$R
+    soln$Z <- z-soln$Z
+    return(soln)
   }
   
   #for debugging purposes
-  C.ZR[i, j] <- optim.C(Rc[i], Zc[j])
+  rslt <- optim.C(Rate, Collateral)
 
-  
   #Divy results by lend.DF and store
-  cnt <- 1
-  rslt <- list()
-  for(i in c(1:n.brw)) {
-    C.ZR <- V[, c(seq(i,(length(Zc)-1)*n.brw, n.brw),(length(Zc)-1)*n.brw+i)]
-    rownames(C.ZR) <- Rc
-    colnames(C.ZR) <- Zc
-    i.brw <- which(lend.df$Brw == v.brw[i])
-    for(j in i.brw) {
-      C.ZR.i <- C.ZR*lend.df$lend.pct[j]
-      rslt[[cnt]] <- C.ZR.i
-      names(rslt)[cnt] <- paste0(v, '_', lend.df$Orgn[j], '.', lend.df$Brw[j])
-      cnt <- cnt+1
-    }
-  }
+  # cnt <- 1
+  # rslt <- list()
+  # for(i in c(1:n.brw)) {
+  #   C.ZR <- V[, c(seq(i,(length(Zc)-1)*n.brw, n.brw),(length(Zc)-1)*n.brw+i)]
+  #   rownames(C.ZR) <- Rc
+  #   colnames(C.ZR) <- Zc
+  #   i.brw <- which(lend.df$Brw == v.brw[i])
+  #   for(j in i.brw) {
+  #     C.ZR.i <- C.ZR*lend.df$lend.pct[j]
+  #     rslt[[cnt]] <- C.ZR.i
+  #     names(rslt)[cnt] <- paste0(v, '_', lend.df$Orgn[j], '.', lend.df$Brw[j])
+  #     cnt <- cnt+1
+  #   }
+  # }
   return (rslt)
   
-  #Smooth result (for debugging purposes)
-  # z.loess <- matrix(predict(loess.fit.2, expand.grid(R = seq(1.01, rLim,0.01), Z = seq(0.01, zLim,0.01))),
-  #                   length(seq(1.01, rLim,0.01)), length(seq(0.01, zLim,0.01)))
-  # gam.fit <- gam(value ~ te(R, Z, bs = c("cs", "cs")), data = df)
-  # z.gam <- matrix(predict(gam.fit, expand.grid(R = seq(1.01, rLim,0.01), Z = seq(0.01, zLim,0.01))),
-  #                 length(seq(1.01, rLim,0.01)), length(seq(0.01, zLim,0.01)))
-  # persp3d(seq(1.01, rLim,0.01), seq(0.01, zLim,0.01), z.gam, col = 'skyblue')
-  # persp3d(seq(1.01, rLim,0.01), seq(0.01, zLim,0.01), z.gam-z.loess, col = 'skyblue')
-  # persp3d(seq(1.01, rLim,0.01), seq(0.01, zLim,0.01), z.loess, col = 'skyblue')
 }
 
 loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
-                           algorithm ="NLOPT_GN_ISRES",
-                           controls = list(risk.coef = 'Bernoulli', maxeval = 1000, span = 0.5),
+                           algorithm ="NLOPT_GN_ISRES",zLim = 0.99, rLim = 2.5,
+                           controls = list(risk.coef = 'Bernoulli', maxeval=1000,
+                                           xtol_rel=0.1,xtol_abs=c(0.5,0.01,0.01,0.001,0.001), span = 0.5),
                            browse = FALSE){
   
   #fetch subgraph of v which is its largest connected component 
@@ -683,7 +710,7 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
   
   #first vertices to propagate to
   v.in <- paste0(subntwk.EL[subntwk.EL[, 'from']== root, 'to'], '_', root,'.',root)
-  v.indx <- match(sapply(strsplit(v.in, "\\."), "[", 1),paste0(subnet.DF[,2],'_',subnet.DF[,1]))
+  v.in.indx <- match(sapply(strsplit(v.in, "\\."), "[", 1),paste0(subnet.DF[,2],'_',subnet.DF[,1]))
   
   #Extract amounts for v.in
   amt.in <- c()
@@ -691,39 +718,49 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
     amt.in[i] <-  predict(smooth.loess(S.list[[v.in[i]]]), as.data.frame(list(R=Rate,Z=Collateral)))
   }
   #Normalize by amount borrowed
-  subnet.DF[v.indx,3] <- Amt*amt.in/sum(amt.in)
-  subnet.DF[v.indx,4] <- Rate
-  subnet.DF[v.indx,5] <- Collateral
+  subnet.DF[v.in.indx,3] <- Amt*amt.in/sum(amt.in)
+  subnet.DF[v.in.indx,4] <- Rate
+  subnet.DF[v.in.indx,5] <- Collateral
   
   #Iterate over frwd.order
   for(v in frwd.order){
     
+    #index of v in existing v.in
+    v.indx <- v.in.indx[as.numeric(sapply(strsplit(v.in, "_"), "[", 1))==v]
+
     #create prop.mtx
     prop.mtx <- as.matrix(subnet.DF[subnet.DF[, 'to']== v,
-                                    c('brw','from','to','Amt.R','Rate.C','Scrt.C')]) #loan assets coming in
-
+                                    c('brw','from','to','Amt.C','Rate.C','Scrt.C')]) #loan assets coming in
+    print(paste0('Frwd-Prop from {',paste(prop.mtx[,'from'],collapse=',') ,'} to ',v))
+    
     #vertices to propagate to
     v.in <- paste0(subntwk.EL[subntwk.EL[, 'from']== v, 'to'], '_', v,'.',root)
-    v.indx <- match(as.numeric(sapply(strsplit(v.in, "_"), "[", 1)),subnet.DF[,1])
+    v.in.indx <- match(sapply(strsplit(v.in, "\\."), "[", 1),paste0(subnet.DF[,2],'_',subnet.DF[,1]))
     
     #Optimize to determine Amount Sold, Sell Rate, and Sell Collateral
     rslt <- cnsm.ZR.frwdsolve(ntwk,v, prop.mtx, S.out = S.list[v.in],
+                              zLim = zLim, rLim = rLim,
                               algorithm=algorithm, controls=controls, browse=browse)
-    browser()
     
-    #Extract amounts for v.in
+    subnet.DF[v.indx,'Amt.S'] <- rslt$S
+    subnet.DF[v.indx,'Rate.S'] <- rslt$R
+    subnet.DF[v.indx,'Scrt.S'] <- rslt$Z
+    
+    #Extract consumptions amounts for v.in -> scale amount sold
     amt.in <- c()
     for(i in c(1:length(v.in))){
-      amt.in[i] <-  predict(smooth.loess(S.list[[v.out[i]]]), as.data.frame(list(R=Rate,Z=Collateral)))
+      amt.in[i] <-  predict(smooth.loess(S.list[[v.in[i]]]), as.data.frame(list(R=rslt$R,Z=rslt$Z)))
     }
     
     #Normalize by amount borrowed
-    subnet.DF[v.indx,3] <- Amt*amt.in/sum(amt.in)
-    subnet.DF[v.indx,4] <- Rate
-    subnet.DF[v.indx,5] <- Collateral
+    subnet.DF[v.in.indx,'Amt.C'] <- rslt$S*amt.in/sum(amt.in)
+    subnet.DF[v.in.indx,'Rate.C'] <- rslt$R
+    subnet.DF[v.in.indx,'Scrt.C'] <- rslt$Z
+    
+    #Update portfolio/balance sheets
+    
+    
   }
-  
-  
   
   browser()
 }
