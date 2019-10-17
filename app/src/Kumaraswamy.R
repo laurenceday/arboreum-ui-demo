@@ -334,7 +334,7 @@ optim.Kumar <- function(corr.mtx, P.in,
       return (list(W = W.in, R = R.in, Z = Z.in)) 
     }
   }
-  
+
   #Moment generating function for Kumaraswamy distribution
   kum.MomGen <- function(a, b, m) {
     log.num <- log(b) + lgamma(1 + m/a) + lgamma(b)
