@@ -37,6 +37,7 @@ calcRiskArray <- function(ntwk, ntwk.attr = 'Risk', direction = 'out', max.depth
   #' @export
   #'
   #' @examples
+  print('Entering function')
   traverse.CalcTrust <- function(ntwk, v.orgn, edgeMtx, direction = 'out', max.depth = 10, crnt.depth = 0, v.visited = c(), converge = FALSE) {
     
     #choose which direction to propogate trust
@@ -125,7 +126,7 @@ calcRiskArray <- function(ntwk, ntwk.attr = 'Risk', direction = 'out', max.depth
       }
     }
   }
-  
+  print('In calcTrust')
   #vertices
   n.vrt <- ntwk %n% "n"
   ntwk.i <- ntwk2igraph.cvrt(ntwk)

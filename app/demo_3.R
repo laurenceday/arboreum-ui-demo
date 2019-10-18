@@ -10,7 +10,6 @@ source(here::here("app/src/Generate.R"))
 source(here::here("app/src/Propagate.R"))
 source(here::here("app/src/Traverse.R"))
 
-load(here::here("app/src/DemoTable.rda")) # The pre-cooked back-propagated network, loads in z.loess
 
 output$pageStub <- renderUI({rv$limn; isolate({
   if(page_debug_on) {
@@ -21,18 +20,13 @@ output$pageStub <- renderUI({rv$limn; isolate({
       fluidRow(
         column(12, offset=1,
                HTML("Now, let us assume that you would like to take out a loan for some purpose. Let's follow how this process works."),
-               HTML("<h3>Step 1: Select Your Parameters</h3>"),
-               numericInput('minLoanAmount', label="Minimum Loan Amount", value = 0, max = 10000),
-               numericInput('maxInterestRate', label="Maximum Interest Rate", value = 0, max = 25),
-               numericInput('maxCollateralRate', label="Maximum Collateral Percentage", value = 0, max = 8000),
-               fluidRow(column(6, offset=1, actionButton('computeBackprop', label="Calculate Available Loans")),column(6, offset=1, "NOTE: This will take some time.")),
-               fluidRow(column(6, offset=1, actionButton('usePrecooked', label="Choose From A Demo Table")),column(6, offset=1, "This is a pre-cooked version!"))
+               HTML("<h3>Step 1: Select Your Parameters</h3>")
         ),
         column(6, offset=1,
                HTML("<h3>Step 2: Choose Your Loan</h3>"),
                DT::dataTableOutput("loanGrid"),
                textOutput("loanDetails"),
-               fluidRow(column(3, offset=0, actionButton('backToStage1', "Previous")), column(3, offset=0, actionButton('stage3', label='Proceed')))
+               fluidRow(column(3, offset=1, actionButton('stage3', label='Proceed')))
         )
       )
     )
@@ -91,10 +85,6 @@ observeEvent(input$loanGrid_cells_selected, {
         showNotification("You need to choose a single loan option.", type="error")
       }
     }
-})
-
-observeEvent(input$backToStage1, {
-  js$redirect("?demo_1")
 })
 
 observeEvent(input$stage3, {

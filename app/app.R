@@ -153,6 +153,7 @@ site_pages <- rbind(site_pages, tibble(name="profile",      sp=0))
 site_pages <- rbind(site_pages, tibble(name="lostpassword", sp=0))
 site_pages <- rbind(site_pages, tibble(name="demo_1",       sp=1))
 site_pages <- rbind(site_pages, tibble(name="demo_2",       sp=1))
+site_pages <- rbind(site_pages, tibble(name="demo_3",       sp=1))
 site_pages <- rbind(site_pages, tibble(name="admin",        sp=500))   # only users with sp>=500 can open this page
 
 pageGet <- function(webpage) {
@@ -261,7 +262,16 @@ server <- function(input, output, session) {
    session$userData$pranavTrust   <- 0
    session$userData$amountDeposit <- 100
    session$userData$stage2        <- FALSE
-   
+   session$userData$computedLoan      <- FALSE
+   session$userData$selectedLoan      <- FALSE
+   session$userData$minLoanAmount     <- 0
+   session$userData$maxInterestRate   <- 0
+   session$userData$maxCollateralRate <- 0
+   session$userData$preCookedVersion  <- FALSE
+   session$userData$loanRowIndex      <- 0
+   session$userData$loanColIndex      <- 0
+   output$loanGrid      <- DT::renderDataTable(as.data.frame(matrix(0, ncol = 10, nrow = 10)), colnames = seq(1, 10, 1), selection=list(target='cell'))
+   output$loanDetails <- renderText({"You haven't selected a desired loan yet."})
 
 # Functions for running javascript on the browser
 #   Because these communicate using the session object, they have to be in the server.
