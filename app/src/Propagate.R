@@ -785,7 +785,6 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
       subnet.DF[v.in.indx,'Scrt.C'] <- rslt$Z
     } else {
       subnet.DF[v.indx,'Amt.S'] <- 0
-      browser()
     }
     
     #write results
