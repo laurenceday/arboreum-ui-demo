@@ -192,7 +192,8 @@ initializeSheets <- function(ntwk, K, A0 = 1000, phi.a = 3, phi.b = 5, eps = 0.1
                                               risk.coef=numeric(),
                                               amount = numeric(),
                                               rate = numeric(),
-                                              security = numeric())
+                                              security = numeric(),
+                                              type=character())
     }
     
     if(is.na(ntwk[['val']][[v]]$Liabilities)){
@@ -201,31 +202,36 @@ initializeSheets <- function(ntwk, K, A0 = 1000, phi.a = 3, phi.b = 5, eps = 0.1
                                                     lender = numeric(),
                                                     amount = numeric(),
                                                     rate = numeric(),
-                                                    security = numeric())
+                                                    security = numeric(),
+                                                    type=character())
     }
     
     if(!all(is.na(ntwk[['val']][[v]]$Portfolio))){
       ntwk[['val']][[v]]$Assets[c(1:nrow(ntwk[['val']][[v]]$Portfolio)),
                                 c('borrower','via.trust','risk.coef','amount','rate','security')] <- 
-              ntwk[['val']][[v]]$Portfolio[,c('to','tot.trust','Risk.coef','rate','security')]
-      ntwk[['val']][[v]]$Assets$via <- v
+              ntwk[['val']][[v]]$Portfolio[,c('to','tot.trust','Risk.coef','lent','rate','security')]
+      ntwk[['val']][[v]]$Assets$via <- ntwk[['val']][[v]]$Assets$borrower #v
+      ntwk[['val']][[v]]$Assets$type <- 'Bond'
     }
   }
-  #Loop through assets and assemble corresponding liabilities
+  
   for(v in c(1:n.vrt)) {
     if(nrow(ntwk[['val']][[v]]$Assets)>0){
       for(i in c(1:nrow(ntwk[['val']][[v]]$Assets))){
         borrower <- ntwk[['val']][[v]]$Assets$borrower[i]
-        newrow <- c('borrower'=borrower,
-                    'via'=v,
-                    'lender'=v,
-                    'amount'=ntwk[['val']][[v]]$Assets$amount[i],
-                    'rate'=ntwk[['val']][[v]]$Assets$rate[i],
-                    'security'=ntwk[['val']][[v]]$Assets$security[i])
+        newrow <- list('borrower'=borrower,
+                       'via'=borrower, #v
+                       'lender'=v,
+                       'amount'=ntwk[['val']][[v]]$Assets$amount[i],
+                       'rate'=ntwk[['val']][[v]]$Assets$rate[i],
+                       'security'=ntwk[['val']][[v]]$Assets$security[i],
+                       'type'='loan-origin')
         ntwk[['val']][[borrower]]$Liabilities <- rbind(ntwk[['val']][[borrower]]$Liabilities,newrow)
       } 
     }
-  }                                  
+    ntwk[['val']][[v]]$Liabilities$type <- as.character(ntwk[['val']][[v]]$Liabilities$type)
+  }
+              
                                     
   trustLnt[is.na(trustLnt)] <- 0
   
