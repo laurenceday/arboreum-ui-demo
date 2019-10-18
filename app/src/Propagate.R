@@ -883,7 +883,7 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
     #Update
     ntwk[['val']][[v]]$Portfolio.corr <- corr.mtx
   }
-  return(list('transactions'=subnet.DFm,'ntwk'=ntwk))
+  return(list('transactions'=subnet.DF,'ntwk'=ntwk))
 }
   
   
