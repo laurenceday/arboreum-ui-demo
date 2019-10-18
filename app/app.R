@@ -256,6 +256,7 @@ server <- function(input, output, session) {
    rv$modal_warning <- 0       # used with an observer below to bring up modal warning dialogs
 
 ### Variables used by the demo
+   # TODO: remove the session$userData$ and see if the variable data persists through screens
    session$userData$mackTrust     <- 0
    session$userData$gauravTrust   <- 0
    session$userData$laurenceTrust <- 0

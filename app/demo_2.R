@@ -10,6 +10,10 @@ source(here::here("app/src/Generate.R"))
 source(here::here("app/src/Propagate.R"))
 source(here::here("app/src/Traverse.R"))
 
+session$userData$usingPrecooked <- FALSE
+
+precookedNetwork <- readRDS(here::here("app/tmp/precookedNetwork.rds"))
+precookedSList   <- readRDS(here::here("app/tmp/precookedSList.rds"))
 load(here::here("app/src/DemoTable.rda")) # The pre-cooked back-propagated network, loads in z.loess
 
 output$pageStub <- renderUI({rv$limn; isolate({
@@ -51,13 +55,15 @@ observeEvent(input$computeBackprop, {
   
   session$userData$baseNetwork        <- session$userData$initialisedSheets[[2]]
   session$userData$riskArray          <- suppressWarnings(calcRiskArray(session$userData$baseNetwork))
+  session$userData$propNetwork        <- session$userData$riskArray[[2]]
   
-  session$userData$loanTable          <- loan.backProp(session$userData$riskArray[[2]], 1, algorithm ="NLOPT_GN_ISRES", browse = FALSE,
+  session$userData$loanTable          <- loan.backProp(session$userData$propNetwork, 1, algorithm ="NLOPT_GN_ISRES", browse = FALSE,
                                                        controls = list(controls = list(xtol_rel = 0.1,
                                                                                        xtol_abs = c(rep(0.1,2),0.01,0.01),
                                                                                        relax = FALSE, maxeval = 1000,
                                                                                        risk.coef = 'Bernoulli',
                                                                                        span = 0.5)))
+  session$userData$Slist              <- session$userData$loanTable$S.list
 
   # Ideally we want to have, instead of a data frame, a selection of the lowest rate/securitisation combinations per
   #   integer around the amount that you want to borrow: perform a floor on each element, then a map getIndex, then 
@@ -74,6 +80,7 @@ observeEvent(input$usePrecooked, {
   session$userData$loanTable <- round(z.loess, 0)
   output$loanGrid <- DT::renderDataTable(as.data.frame(session$userData$loanTable), colnames = seq(1, 99, 1), selection=list(target='cell'))
   session$userData$computedLoan <- TRUE
+  session$userData$usingPrecooked <- TRUE
 })
 
 observeEvent(input$loanGrid_cells_selected, {
@@ -83,7 +90,10 @@ observeEvent(input$loanGrid_cells_selected, {
       if (length(input$loanGrid_cells_selected == 1)) {
           session$userData$interestRate    <- input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), 1]
           session$userData$collateralRate  <- input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), ncol(input$loanGrid_cells_selected)]
-          session$userData$loanAmount      <- z.loess[input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), 1], input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), ncol(input$loanGrid_cells_selected)]]
+          session$userData$loanAmount      <- session$userData$loanTable[input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), 1], input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), ncol(input$loanGrid_cells_selected)]]
+          write(input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), 1], here::here("app/tmp/interestRate.rda"))
+          write(input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), ncol(input$loanGrid_cells_selected)], here::here("app/tmp/securitisationRate.rda"))
+          write(session$userData$loanTable[input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), 1], input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), ncol(input$loanGrid_cells_selected)]], here::here("app/tmp/loanAmount.rda"))
           session$userData$selectedLoan <- TRUE
           output$loanDetails <- renderText({paste0("You wish to borrow $", round(session$userData$loanAmount, 2), " at an interest rate of ", session$userData$interestRate, "% and securitisation ratio of ", session$userData$collateralRate, "%. If you agree, click Proceed.")})
       } else {
@@ -98,7 +108,16 @@ observeEvent(input$backToStage1, {
 })
 
 observeEvent(input$stage3, {
-  if (session$userData$computedLoan && session$userData$selectedLoan) {js$redirect("?demo_3")} else { showNotification("You have either not yet computed a loan, or not selected your desired offered loan.", type="error") }
+  if (session$userData$computedLoan && session$userData$selectedLoan) {
+      networkToPropagate <- if (session$userData$usingPrecooked) { precookedNetwork } else { session$userData$riskArray[[2]] }
+      networkSList <- if (session$userData$usingPrecooked) { precookedSList } else { session$userData$Slist }
+      showNotification("Propagating your loan through the network, please wait...", type="warning")
+      forwardNetwork <- suppressWarnings(loan.frwdProp(networkToPropagate, 1, networkSList, session$userData$loanAmount, 1 + (session$userData$interestRate/100), session$userData$collateralRate/100))
+      saveRDS(forwardNetwork, here::here("app/tmp/forwardNetwork.rds"))
+      js$redirect("?demo_3")
+  } else { 
+      showNotification("You have either not yet computed a loan, or not selected your desired offered loan.", type="error")
+    }
 })
 
 

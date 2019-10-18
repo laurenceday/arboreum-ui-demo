@@ -558,7 +558,7 @@ cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),zLim = 0.99, rLi
   
   #Iterate through S.mtx, Rc, & Zc, update wgt.Vec, rate.Vec, and scrt.Vec, optimize missing value (C)
   optim.C <- function(r, z) {
-    print(paste0('Optimising interest rate ', r, ' and collateral ', z))
+    print(paste0('Optimising interest rate ', round(r, 3), ' and collateral ', round(z, 3)))
     P <- risk.Mtx
     W <- lent.Vec
     R <- rate.Vec
@@ -627,7 +627,7 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
                            controls = list(risk.coef = 'Bernoulli', maxeval=1000,
                                            xtol_rel=0.1,xtol_abs=c(0.5,0.01,0.01,0.001,0.001), span = 0.5),
                            browse = FALSE){
-  
+  print(paste0("Starting forward propagation with loan amount ", Amt, ", a yield of ", Rate, " and collateralisation of ", Collateral ))
   #fetch subgraph of v which is its largest connected component 
   rtrv.lcl.Edgelist <- function(ntwk, v, max.dist = 10) {
     

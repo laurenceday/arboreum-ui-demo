@@ -10,6 +10,7 @@ source(here::here("app/src/Generate.R"))
 source(here::here("app/src/Propagate.R"))
 source(here::here("app/src/Traverse.R"))
 
+#session$userData$forwardPropData <- loan.frwdProp(session$userData$propNetwork, 1, )
 
 output$pageStub <- renderUI({rv$limn; isolate({
   if(page_debug_on) {
@@ -18,77 +19,20 @@ output$pageStub <- renderUI({rv$limn; isolate({
   if(session$userData$user$sp) {      # not logged in; return registration inputs
     pageText <- tagList(
       fluidRow(
-        column(12, offset=1,
-               HTML("Now, let us assume that you would like to take out a loan for some purpose. Let's follow how this process works."),
-               HTML("<h3>Step 1: Select Your Parameters</h3>")
+        column(5, offset=1,
+               HTML("<h3>What happened to your loan?</h3>"),
+               HTML("Let's see how Arboreum has distributed your loan.<br>As you can see, your immediate peers have taken on the highest risk, but also make the highest return."),
+               HTML("<h4>Your Loan Terms</h4>"),
+               textOutput("chosenLoan"),
+               HTML("<h4>Your Balance Sheet</h4>"),
+               fluidRow(column(2, offset=0, actionButton('backToStage2', "Previous")), column(3, offset=0, actionButton('stage4', label='Proceed')))
         ),
-        column(6, offset=1,
-               HTML("<h3>Step 2: Choose Your Loan</h3>"),
-               DT::dataTableOutput("loanGrid"),
-               textOutput("loanDetails"),
-               fluidRow(column(3, offset=1, actionButton('stage3', label='Proceed')))
+        column(5, offset=0,
+               HTML("<h3>Your Network Impact</h3>")
         )
       )
     )
   }
   return(pageText)     # This is an "explicit return". Remeber that renderUI() is an R function!
 })})
-
-observeEvent(input$computeBackprop, {
-  showNotification("Calculating... this may take some time - go get a coffee.", type="warning", duration=30)
-  session$userData$minLoanAmount      <- input$minLoanAmount
-  session$userData$maxInterestRate    <- input$maxInterestRate
-  session$userData$maxCollateralRate  <- input$maxCollateralRate
-  
-  session$userData$initialisedNetwork <- buildCorePeri(N = 100, K = 40)
-  session$userData$initialisedSheets  <- suppressWarnings(initializeSheets(session$userData$initialisedNetwork, K = 40, A0 = 10000))
-  
-  session$userData$baseNetwork        <- session$userData$initialisedSheets[[2]]
-  session$userData$riskArray          <- suppressWarnings(calcRiskArray(session$userData$baseNetwork))
-  
-  session$userData$loanTable          <- loan.backProp(session$userData$riskArray[[2]], 1, algorithm ="NLOPT_GN_ISRES", browse = FALSE,
-                                                       controls = list(controls = list(xtol_rel = 0.1,
-                                                                                       xtol_abs = c(rep(0.1,2),0.01,0.01),
-                                                                                       relax = FALSE, maxeval = 1000,
-                                                                                       risk.coef = 'Bernoulli',
-                                                                                       span = 0.5)))
-
-  # Ideally we want to have, instead of a data frame, a selection of the lowest rate/securitisation combinations per
-  #   integer around the amount that you want to borrow: perform a floor on each element, then a map getIndex, then 
-  #   hoist out the 'minimum' of each set. Boom, you have a list of options rather than a table.
-  output$loanGrid <-  DT::renderDataTable(
-    as.data.frame(round(matrix(predict(session$userData$loanTable$root.S, expand.grid(R = seq(1.01, 2.5,0.01), Z = seq(0.01, 0.99,0.01))),
-                             length(seq(1.01, 2.5,0.01)), length(seq(0.01, 0.99,0.01))), 0), colnames = seq(1, 99,0.01), selection=list(target='cell'))
-  )
-  session$userData$computedLoan <- TRUE
-  
-})
-
-observeEvent(input$usePrecooked, {
-  session$userData$loanTable <- round(z.loess, 0)
-  output$loanGrid <- DT::renderDataTable(as.data.frame(session$userData$loanTable), colnames = seq(1, 99, 1), selection=list(target='cell'))
-  session$userData$computedLoan <- TRUE
-})
-
-observeEvent(input$loanGrid_cells_selected, {
-    if (length(input$loanGrid_cells_selected) == 0) {
-      session$userData$selectedLoan <- FALSE
-    } else {
-      if (length(input$loanGrid_cells_selected == 1)) {
-          session$userData$interestRate    <- input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), 1]
-          session$userData$collateralRate  <- input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), ncol(input$loanGrid_cells_selected)]
-          session$userData$loanAmount      <- z.loess[input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), 1], input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), ncol(input$loanGrid_cells_selected)]]
-          session$userData$selectedLoan <- TRUE
-          output$loanDetails <- renderText({paste0("You wish to borrow $", round(session$userData$loanAmount, 2), " at an interest rate of ", session$userData$interestRate, "% and securitisation ratio of ", session$userData$collateralRate, "%. If you agree, click Proceed.")})
-      } else {
-        session$userData$selectedLoan <- FALSE
-        showNotification("You need to choose a single loan option.", type="error")
-      }
-    }
-})
-
-observeEvent(input$stage3, {
-  if (session$userData$computedLoan && session$userData$selectedLoan) {js$redirect("?demo_3")} else { showNotification("You have either not yet computed a loan, or not selected your desired offered loan.", type="error") }
-})
-
 
