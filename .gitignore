@@ -38,6 +38,6 @@ credentials.R
 .Rproj.user
 
 # App files that shouldn't be uploaded
-app/users-table.R
+app/users-table.RDS
 app on 171023/
 app/rsconnect
