@@ -159,6 +159,7 @@ cnsm.ZR.backsolve <- function(ntwk, v, orgn.brw.mtx, S.out = list(),
   rm(S.out)
   
   #Iterate through S.mtx, Rc, & Zc, update wgt.Vec, rate.Vec, and scrt.Vec, optimize missing value (C)
+  S.indx <- which(!S.TF)
   optim.C <- function(r, z) {
     P <- risk.Mtx
     W <- lent.Vec
@@ -562,6 +563,7 @@ cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),zLim = 0.99, rLi
   rm(S.out)
   
   #Iterate through S.mtx, Rc, & Zc, update wgt.Vec, rate.Vec, and scrt.Vec, optimize missing value (C)
+  S.indx <- which(!S.TF)
   optim.C <- function(r, z) {
     P <- risk.Mtx
     W <- lent.Vec
@@ -574,13 +576,12 @@ cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),zLim = 0.99, rLi
     Z[indx.c] <- z
     
     #eliminate rows with 0 amounts to be sold
-    S.TF <- which(!S.TF)
     if(length(S.TF)>0) {
-      P <- P[-indx.s[S.TF],]
-      W <- W[-indx.s[S.TF]]
-      R <- R[-indx.s[S.TF]]
-      Z <- Z[-indx.s[S.TF]]
-      indx.mtx <- -indx.s[S.TF]
+      P <- P[-indx.s[S.indx],]
+      W <- W[-indx.s[S.indx]]
+      R <- R[-indx.s[S.indx]]
+      Z <- Z[-indx.s[S.indx]]
+      indx.mtx <- -indx.s[S.indx]
     } else {
       indx.mtx <- c(1:nrow(corr.mtx))
     }
