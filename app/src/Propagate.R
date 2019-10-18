@@ -1,14 +1,12 @@
-import(stats)
-import(dplyr)
-import(doParallel)
-import(bigmemory)
-import(foreach)
+library(stats)
+library(dplyr)
+library(doParallel)
+library(bigmemory)
+library(foreach)
 
-utils    <- modules::use(here::here("Utils.R"))
-
-kumaraswamy <- modules::use(here::here("Kumaraswamy.R"))
-
-correlation <- modules::use(here::here("PortfolioCorrelation.R"))
+source(here::here("app/src/Utils.R"))
+source(here::here("app/src/Kumaraswamy.R"))
+source(here::here("app/src/PortfolioCorrelation.R"))
 
 
 #' Solves individual (node-specific) consumption function for a hypothetical loan originated by a borrower somewhere in the network
@@ -53,7 +51,7 @@ cnsm.ZR.backsolve <- function(ntwk, v, orgn.brw.mtx, S.out = list(),
   n.brw  <- length(v.brw)
   
   #Retrieve existing correlation matrix for portfolio of v
-  corr.mtx <- correlation$correlationUpdate(ntwk, v, v.brw, direction = 'in')
+  corr.mtx <- correlationUpdate(ntwk, v, v.brw, direction = 'in')
   v.corr <- as.numeric(rownames(corr.mtx))
   
   #check if borrower currently in loan portfolio
@@ -182,7 +180,7 @@ cnsm.ZR.backsolve <- function(ntwk, v, orgn.brw.mtx, S.out = list(),
       indx.mtx <- c(1:nrow(corr.mtx))
     }
     #solve
-    soln <- kumaraswamy$optim.Kumar(corr.mtx[indx.mtx, indx.mtx],
+    soln <- optim.Kumar(corr.mtx[indx.mtx, indx.mtx],
                                     P.in = P[, P.indx], W.in = W, R.in = R, Z.in = Z, 
                                     Wlim = lend.lim, Rlim = rLim, S.FN = S.FN,
                                     algorithm = algorithm, controls = controls, relax = relax, browse = browse)
@@ -225,9 +223,9 @@ cnsm.ZR.backsolve <- function(ntwk, v, orgn.brw.mtx, S.out = list(),
   on.exit(parallel::stopCluster(clst))
   #data storage object
   V <- big.matrix(length(Rc), length(Zc)*n.brw)
-  desc <- describe(V)
+  desc <- bigmemory::describe(V)
   #parallel for loop
-  result = foreach(i = c(1:length(Rc)))%:%foreach(j = c(1:length(Zc)))%dopar%
+  result = foreach(i = c(1:length(Rc)), .export='optim.Kumar')%:%foreach(j = c(1:length(Zc)))%dopar%
   {
     V <- bigmemory::attach.big.matrix(desc)
     V[i, c(j:(j+n.brw-1))] <- optim.C(Rc[i], Zc[j])
@@ -297,7 +295,7 @@ loan.backProp <- function(ntwk, root,
     colnames(edges.Mtx) <- c('from', 'to')
     
     #subgraph of v
-    v.bfs <- igraph::bfs(utils$ntwk2igraph.cvrt(ntwk),1, neimode = 'out', dist = TRUE, order = TRUE, father = TRUE, rank = TRUE, pred = TRUE)
+    v.bfs <- igraph::bfs(ntwk2igraph.cvrt(ntwk),1, neimode = 'out', dist = TRUE, order = TRUE, father = TRUE, rank = TRUE, pred = TRUE)
     x <- edges.Mtx[edges.Mtx[, 'to'] %in% which(v.bfs$dist>0),]
     x <- x[x[, 'to']!= v,]
     x <- x[x[, 'from'] %in% c(v, which(v.bfs$dist>0 & v.bfs$dist<max.dist)),]
@@ -456,7 +454,7 @@ cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),zLim = 0.99, rLi
   }
   
   #Retrieve existing correlation matrix for portfolio of v
-  corr.mtx <- correlation$correlationUpdate(ntwk, v, v.brw, direction = 'in')
+  corr.mtx <- correlationUpdate(ntwk, v, v.brw, direction = 'in')
   v.corr <- as.numeric(rownames(corr.mtx))
   
   #check if borrower currently in loan portfolio
@@ -564,6 +562,7 @@ cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),zLim = 0.99, rLi
   #Iterate through S.mtx, Rc, & Zc, update wgt.Vec, rate.Vec, and scrt.Vec, optimize missing value (C)
   S.indx <- which(!S.TF)
   optim.C <- function(r, z) {
+    print(paste0('Optimising interest rate ', round(r, 3), ' and collateral ', round(z, 3)))
     P <- risk.Mtx
     W <- lent.Vec
     R <- rate.Vec
@@ -591,13 +590,13 @@ cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),zLim = 0.99, rLi
     }
     #Else solve
     soln <- tryCatch({
-              kumaraswamy$optim.Kumar(corr.mtx[indx.mtx, indx.mtx],
+              optim.Kumar(corr.mtx[indx.mtx, indx.mtx],
                                       P.in = P[, P.indx], W.in = W, R.in = R, Z.in = Z, 
                                       Wlim = lend.lim, Rlim = rLim, S.FN = S.FN, Clim = Consumed,
                                       algorithm = algorithm, controls = controls, relax = relax, browse = browse)
             }, error = function(e) {
               browser()
-              kumaraswamy$optim.Kumar(corr.mtx[indx.mtx, indx.mtx],
+              optim.Kumar(corr.mtx[indx.mtx, indx.mtx],
                                       P.in = P[, P.indx], W.in = W, R.in = R, Z.in = Z, 
                                       Wlim = lend.lim, Rlim = rLim, S.FN = S.FN, Clim = Consumed,
                                       algorithm = algorithm, controls = controls, relax = relax, browse = TRUE)
@@ -647,7 +646,7 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
     colnames(edges.Mtx) <- c('from', 'to')
     
     #subgraph of v
-    v.bfs <- igraph::bfs(utils$ntwk2igraph.cvrt(ntwk),1, neimode = 'out', dist = TRUE, order = TRUE, father = TRUE, rank = TRUE, pred = TRUE)
+    v.bfs <- igraph::bfs(ntwk2igraph.cvrt(ntwk),1, neimode = 'out', dist = TRUE, order = TRUE, father = TRUE, rank = TRUE, pred = TRUE)
     x <- edges.Mtx[edges.Mtx[, 'to'] %in% which(v.bfs$dist>0),]
     x <- x[x[, 'to']!= v,]
     x <- x[x[, 'from'] %in% c(v, which(v.bfs$dist>0 & v.bfs$dist<max.dist)),]
@@ -724,7 +723,7 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
   #Extract amounts for v.in
   amt.in <- c()
   for(i in c(1:length(v.in))){
-    amt.in[i] <-  predict(smooth.loess(S.list[[v.in[i]]]), as.data.frame(list(R=Rate,Z=Collateral)))
+    amt.in[i] <-  stats::predict(smooth.loess(S.list[[v.in[i]]]), as.data.frame(list(R=Rate,Z=Collateral)))
   }
   #Normalize by amount borrowed
   subnet.DF[v.in.indx,3] <- Amt*amt.in/sum(amt.in)
@@ -776,7 +775,7 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
       #Extract consumptions amounts for v.in -> scale amount sold
       amt.in <- c()
       for(i in c(1:length(v.in))){
-        amt.in[i] <-  predict(smooth.loess(S.list[[v.in[i]]]), as.data.frame(list(R=rslt$R,Z=rslt$Z)))
+        amt.in[i] <-  stats::predict(smooth.loess(S.list[[v.in[i]]]), as.data.frame(list(R=rslt$R,Z=rslt$Z)))
       }
       
       #Normalize by amount borrowed
@@ -869,7 +868,7 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
     #ntwk[['val']][[v.to]]$Portfolio[indx.ptfl,'tot.trust'] <- NA
     
     #Update correlation matrix
-    corr.mtx <- correlation$correlationUpdate(ntwk, v, direction = 'in')
+    corr.mtx <- correlationUpdate(ntwk, v, direction = 'in')
     sort.indx <- sort(ntwk[['val']][[v]]$Portfolio$to,index.return=TRUE)$ix
     sort.indx <- sort(sort.indx,index.return=TRUE)$ix
     corr.mtx <- corr.mtx[sort.indx,sort.indx]
