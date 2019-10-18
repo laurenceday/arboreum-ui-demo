@@ -1,7 +1,6 @@
-library(stats)
-library(nleqslv)
-library(dplyr)
-library(nloptr)
+import(stats)
+import(nleqslv)
+import(nloptr)
 
 #method of moments solver for kumaraswamy distribution
 kumar.MoM <- function(mu, vr) {
@@ -85,6 +84,8 @@ optim.Kumar <- function(corr.mtx, P.in,
     S.optim <- c((nrow(corr.mtx)+1-length(S.FN)):nrow(corr.mtx))
     W.in[S.optim] <- 0.01
     n.S <- length(S.optim)
+  } else {
+    S.optim <- integer(0)
   }
   
   if(any(is.na(W.in))) {
@@ -257,7 +258,7 @@ optim.Kumar <- function(corr.mtx, P.in,
         }
         return (S)
       }
-      
+      browser
       #If inpt.adj
       if(inpt.adj) {
         RZ <- RZ.S.calc(R, Z)
@@ -266,7 +267,7 @@ optim.Kumar <- function(corr.mtx, P.in,
       }
       #simple case
       m <- length(S.FN)
-     if(m == 1) {
+      if(m == 1) {
         if(class(S.FN[[1]])=="loess"){
           S <- S.intrp.set(S.FN[1], R, Z)
         } else {
@@ -339,7 +340,7 @@ optim.Kumar <- function(corr.mtx, P.in,
       return (list(W = W.in, R = R.in, Z = Z.in)) 
     }
   }
-
+  
   #Moment generating function for Kumaraswamy distribution
   kum.MomGen <- function(a, b, m) {
     log.num <- log(b) + lgamma(1 + m/a) + lgamma(b)
@@ -708,7 +709,6 @@ optim.Kumar <- function(corr.mtx, P.in,
   
   #Function combines equality and inequality constraints in a single objec (required for certain algorithms)
   combo.cnst.eval <- function (X)  {
-    
     #update parameters
     params <- opt.update.WRZ (X) 
     
@@ -745,12 +745,11 @@ optim.Kumar <- function(corr.mtx, P.in,
     cnst <- c(kumTail.cnst(params),
               kumMoM.2.cnst(params), -kumMoM.2.cnst(params))
     
+    W <- params$W
+    R <- params$R
+    Z <- params$Z
     #New constraint: amount purchased+securitized <= trust channel
     if(S.TF) {
-      W <- params$W
-      R <- params$R
-      Z <- params$Z
-      
       #constraint values
       trust.ineq <- W[W.optim]+W[S.optim]*(-Z[S.optim])-Wlim
       cnst <- c(cnst, trust.ineq)
@@ -764,14 +763,15 @@ optim.Kumar <- function(corr.mtx, P.in,
     #New constraint: amount purchased+amountSold == Total Consumed
     if(C.TF){
       #constraint values
-      cnsm.ineq <- W[W.optim]+W[S.optim]-Clim
+      cnsm.ineq <- W[W.optim]+ifelse(S.TF,W[S.optim],0)-Clim
       cnst <- c(cnst, cnsm.ineq)
       
       #constraint jacobian
-      jcb.mtx[c((4+n.S):(3+n.S+n.C)), W.indx] <- 1 
-      jcb.mtx[c((4+n.S):(3+n.S+n.C)), ZS.indx] <- S.dZ.intrp(R[S.optim],Z[S.optim])
-      jcb.mtx[c((4+n.S):(3+n.S+n.C)), RS.indx] <- S.dR.intrp(R[S.optim],Z[S.optim])
-      
+      jcb.mtx[c((4+n.S):(3+n.S+n.C)), W.indx] <- 1
+      if(S.TF){
+        jcb.mtx[c((4+n.S):(3+n.S+n.C)), ZS.indx] <- S.dZ.intrp(R[S.optim],Z[S.optim])
+        jcb.mtx[c((4+n.S):(3+n.S+n.C)), RS.indx] <- S.dR.intrp(R[S.optim],Z[S.optim])
+      }
       #Repeat with negative side
       cnst <- c(cnst, -cnsm.ineq)
       jcb.mtx <- rbind(jcb.mtx,-jcb.mtx[c((4+n.S):(3+n.S+n.C)),])
