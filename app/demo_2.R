@@ -50,8 +50,8 @@ observeEvent(input$computeBackprop, {
   session$userData$maxInterestRate    <- input$maxInterestRate
   session$userData$maxCollateralRate  <- input$maxCollateralRate
   
-  session$userData$initialisedNetwork <- buildCorePeri(N = 50, K = 10)
-  session$userData$initialisedSheets  <- suppressWarnings(initializeSheets(session$userData$initialisedNetwork, K = 40, A0 = 10000))
+  session$userData$initialisedNetwork <- buildCorePeri(N = 100, K = 10)
+  session$userData$initialisedSheets  <- suppressWarnings(initializeSheets(session$userData$initialisedNetwork, K = 10, A0 = 10000))
   
   session$userData$baseNetwork        <- session$userData$initialisedSheets[[2]]
   session$userData$riskArray          <- suppressWarnings(calcRiskArray(session$userData$baseNetwork))
@@ -114,6 +114,7 @@ observeEvent(input$stage3, {
       networkSList <- if (session$userData$usingPrecooked) { precookedSList } else { session$userData$Slist }
       showNotification("Propagating your loan through the network, please wait...", type="warning")
       forwardNetwork <- suppressWarnings(loan.frwdProp(networkToPropagate, 1, networkSList, session$userData$loanAmount, 1 + (session$userData$interestRate/100), session$userData$collateralRate/100))
+      saveRDS(forwardNetwork, here::here("app/tmp/precookedForwardProp.rds"))
       js$redirect("?demo_3")
   } else { 
       showNotification("You have either not yet computed a loan, or not selected your desired offered loan.", type="error")

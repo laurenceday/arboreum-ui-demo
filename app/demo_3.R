@@ -2,6 +2,8 @@ library(dplyr)
 library(networkD3)
 library(network)
 
+load("C:/Users/laure/Downloads/ntwkFinSim2.RData")
+
 ### om_skeleton profile.R
 ### Tom Weishaar - Oct 2017 - v0.1
 ### Skeleton for multi-page, multi-user web site in Shiny, with user authentication
@@ -10,7 +12,9 @@ source(here::here("app/src/Generate.R"))
 source(here::here("app/src/Propagate.R"))
 source(here::here("app/src/Traverse.R"))
 
-#session$userData$forwardPropData <- loan.frwdProp(session$userData$propNetwork, 1, )
+postBrw.ntwk <- readRDS(here::here("app/tmp/precookedForwardProp.rds"))
+precookedFwdPropTxes <- postBrw.ntwk$transactions
+precookedFwdPropNtwk <- postBrw.ntwk$ntwk
 
 output$pageStub <- renderUI({rv$limn; isolate({
   if(page_debug_on) {
