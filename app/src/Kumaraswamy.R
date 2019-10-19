@@ -770,9 +770,11 @@ optim.Kumar <- function(corr.mtx, P.in,
       cnst <- c(cnst, cnsm.ineq)
       
       #constraint jacobian
-      jcb.mtx[c((4+n.S):(3+n.S+n.C)), W.indx] <- 1 
-      jcb.mtx[c((4+n.S):(3+n.S+n.C)), ZS.indx] <- S.dZ.intrp(R[S.optim],Z[S.optim])
-      jcb.mtx[c((4+n.S):(3+n.S+n.C)), RS.indx] <- S.dR.intrp(R[S.optim],Z[S.optim])
+      jcb.mtx[c((4+n.S):(3+n.S+n.C)), W.indx] <- 1
+      if(S.TF){
+        jcb.mtx[c((4+n.S):(3+n.S+n.C)), ZS.indx] <- S.dZ.intrp(R[S.optim],Z[S.optim])
+        jcb.mtx[c((4+n.S):(3+n.S+n.C)), RS.indx] <- S.dR.intrp(R[S.optim],Z[S.optim])
+      }
       
       #Repeat with negative side
       cnst <- c(cnst, -cnsm.ineq)
