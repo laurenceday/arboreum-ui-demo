@@ -182,8 +182,8 @@ initializeSheets <- function(ntwk, K, A0 = 1000, phi.a = 3, phi.b = 5, eps = 0.1
   }
   
   #Create Assets/Liabilities Dataframes from Portfolios
-  set.vertex.attribute(ntwk, 'Assets', NA)
-  set.vertex.attribute(ntwk, 'Liabilities', NA)
+  network::set.vertex.attribute(ntwk, 'Assets', NA)
+  network::set.vertex.attribute(ntwk, 'Liabilities', NA)
   for(v in c(1:n.vrt)) {
     if(is.na(ntwk[['val']][[v]]$Assets)){
       ntwk[['val']][[v]]$Assets <- data.frame(borrower = numeric(),

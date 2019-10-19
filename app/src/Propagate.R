@@ -30,7 +30,7 @@ source(here::here("app/src/PortfolioCorrelation.R"))
 cnsm.ZR.backsolve <- function(ntwk, v, orgn.brw.mtx, S.out = list(),
                               zLim = 0.99, rLim = 2.5, r.mesh = 0.01, z.mesh = 0.01,
                               algorithm ="NLOPT_LN_COBYLA", controls = list(), browse = FALSE) { #Zs.vec, Rs.vec
-  
+  print(paste0("Backsolving for ", v))
   #Key intuition: solve for C for every combination of Zc, Rc and Zs, Rs, S given
   # As we know optimization is convex, topology of surface is smooth
   # Also solution space is nicely bounded
@@ -89,6 +89,7 @@ cnsm.ZR.backsolve <- function(ntwk, v, orgn.brw.mtx, S.out = list(),
   risk.Mtx <- ntwk[['val']][[v]]$Subj.risk
   risk.Mtx <- risk.Mtx[match(c(ptfl.DF$to, v.brw, v.brw), risk.Mtx$to),] #orgn.brw.mtx[,2]
   risk.Mtx <- as.matrix(risk.Mtx[, c(2,3,4)])
+  risk.Mtx[risk.Mtx[,'Risk.coef']>0.99,'Risk.coef'] <- 0.99
   P.indx <- c(1,2,3)
   
   #limit amount that can be lent
@@ -491,6 +492,7 @@ cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),zLim = 0.99, rLi
   risk.Mtx <- ntwk[['val']][[v]]$Subj.risk
   risk.Mtx <- risk.Mtx[match(c(ptfl.DF$to, v.brw, v.brw), risk.Mtx$to),] #orgn.brw.mtx[,2]
   risk.Mtx <- as.matrix(risk.Mtx[, c(2,3,4)])
+  risk.Mtx[risk.Mtx[,'Risk.coef']>0.99,'Risk.coef'] <- 0.99
   P.indx <- c(1,2,3)
   
   #limit amount that can be lent
@@ -557,6 +559,7 @@ cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),zLim = 0.99, rLi
   rm(S.out)
   
   #Iterate through S.mtx, Rc, & Zc, update wgt.Vec, rate.Vec, and scrt.Vec, optimize missing value (C)
+  S.indx <- which(!S.TF)
   optim.C <- function(r, z) {
     print(paste0('Optimising interest rate ', round(r, 3), ' and collateral ', round(z, 3)))
     P <- risk.Mtx
@@ -570,17 +573,19 @@ cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),zLim = 0.99, rLi
     Z[indx.c] <- z
     
     #eliminate rows with 0 amounts to be sold
-    S.TF <- which(!S.TF)
-    if(length(S.TF)>0) {
-      P <- P[-indx.s[S.TF],]
-      W <- W[-indx.s[S.TF]]
-      R <- R[-indx.s[S.TF]]
-      Z <- Z[-indx.s[S.TF]]
-      indx.mtx <- -indx.s[S.TF]
+    if(length(S.indx)>0) {
+      P <- P[-indx.s[S.indx],]
+      W <- W[-indx.s[S.indx]]
+      R <- R[-indx.s[S.indx]]
+      Z <- Z[-indx.s[S.indx]]
+      indx.mtx <- -indx.s[S.indx]
     } else {
       indx.mtx <- c(1:nrow(corr.mtx))
     }
     #solve
+    if(sum(is.na(W))==1 & sum(is.na(R))==0 & sum(is.na(Z))==0){
+    
+    }
     soln <- tryCatch({
               optim.Kumar(corr.mtx[indx.mtx, indx.mtx],
                                       P.in = P[, P.indx], W.in = W, R.in = R, Z.in = Z, 
@@ -594,7 +599,9 @@ cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),zLim = 0.99, rLi
                                       algorithm = algorithm, controls = controls, relax = relax, browse = browse)
               browser()
             })
-    
+    if(sum(is.na(W))==1 & sum(is.na(R))==0 & sum(is.na(Z))==0){
+      return(soln)
+    }
     soln$R <- r-soln$R
     soln$Z <- z-soln$Z
     return(soln)
@@ -624,8 +631,7 @@ cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),zLim = 0.99, rLi
 
 loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
                            algorithm ="NLOPT_GN_ISRES",zLim = 0.99, rLim = 2.5,
-                           controls = list(risk.coef = 'Bernoulli', maxeval=1000,
-                                           xtol_rel=0.1,xtol_abs=c(0.5,0.01,0.01,0.001,0.001), span = 0.5),
+                           controls = list(maxeval=1000, xtol_rel=0.1,xtol_abs=c(0.5,0.01,0.01,0.001,0.001), span = 0.5),
                            browse = FALSE){
   print(paste0("Starting forward propagation with loan amount ", Amt, ", a yield of ", Rate, " and collateralisation of ", Collateral ))
   #fetch subgraph of v which is its largest connected component 
@@ -724,7 +730,7 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
   for(v in frwd.order){
     
     #index of v in existing v.in
-    v.indx <- v.in.indx[as.numeric(sapply(strsplit(v.in, "_"), "[", 1))==v]
+    v.indx <- which(subnet.DF$to==v)
 
     #create prop.mtx
     prop.mtx <- as.matrix(subnet.DF[subnet.DF[, 'to']== v,
@@ -735,32 +741,145 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
     v.in <- paste0(subntwk.EL[subntwk.EL[, 'from']== v, 'to'], '_', v,'.',root)
     v.in.indx <- match(sapply(strsplit(v.in, "\\."), "[", 1),paste0(subnet.DF[,2],'_',subnet.DF[,1]))
     
-    #Optimize to determine Amount Sold, Sell Rate, and Sell Collateral
-    rslt <- cnsm.ZR.frwdsolve(ntwk,v, prop.mtx, S.out = S.list[v.in],
-                              zLim = zLim, rLim = rLim,
-                              algorithm=algorithm, controls=controls, browse=browse)
-    
-    subnet.DF[v.indx,'Amt.S'] <- rslt$S
-    subnet.DF[v.indx,'Rate.S'] <- rslt$R
-    subnet.DF[v.indx,'Scrt.S'] <- rslt$Z
-    
-    #Extract consumptions amounts for v.in -> scale amount sold
-    amt.in <- c()
-    for(i in c(1:length(v.in))){
-      amt.in[i] <-  stats::predict(smooth.loess(S.list[[v.in[i]]]), as.data.frame(list(R=rslt$R,Z=rslt$Z)))
+    if(length(subntwk.EL[subntwk.EL[, 'from']== v, 'to'])>0){
+      v.in <- paste0(subntwk.EL[subntwk.EL[, 'from']== v, 'to'], '_', v,'.',root)
+      v.in.indx <- match(sapply(strsplit(v.in, "\\."), "[", 1),paste0(subnet.DF[,2],'_',subnet.DF[,1]))
+    } else {
+      v.in <- integer(0)
+      v.in.indx <-  integer(0)
     }
     
     #Normalize by amount borrowed
-    subnet.DF[v.in.indx,'Amt.C'] <- rslt$S*amt.in/sum(amt.in)
-    subnet.DF[v.in.indx,'Rate.C'] <- rslt$R
-    subnet.DF[v.in.indx,'Scrt.C'] <- rslt$Z
+    rslt <- tryCatch({cnsm.ZR.frwdsolve(ntwk,v, prop.mtx, S.out = S.list[v.in],
+                                        zLim = zLim, rLim = rLim,
+                                        algorithm=algorithm, controls=controls, browse=browse)
+    }, error = function(e) {
+      browser()
+      cnsm.ZR.frwdsolve(ntwk,v, prop.mtx, S.out = S.list[v.in],
+                        zLim = zLim, rLim = rLim,
+                        algorithm=algorithm, controls=controls, browse=TRUE)
+      browser()
+    })
+    #save updated portfolio distribution
+    ntwk[['val']][[v]]$Ptfl.kumPDF.b <- rslt$K[1]
+    ntwk[['val']][[v]]$Ptfl.kumPDF.a <- rslt$K[2]
     
-    #Update portfolio/balance sheets
+    if(length(v.in)>0){
+      subnet.DF[v.indx,'Amt.S'] <- rslt$S
+      subnet.DF[v.indx,'Rate.S'] <- rslt$R
+      subnet.DF[v.indx,'Scrt.S'] <- rslt$Z
+      
+      #Extract consumptions amounts for v.in -> scale amount sold
+      amt.in <- c()
+      for(i in c(1:length(v.in))){
+        amt.in[i] <-  predict(smooth.loess(S.list[[v.in[i]]]), as.data.frame(list(R=rslt$R,Z=rslt$Z)))
+      }
+      
+      #Normalize by amount borrowed
+      subnet.DF[v.in.indx,'Amt.C'] <- rslt$S*amt.in/sum(amt.in)
+      subnet.DF[v.in.indx,'Rate.C'] <- rslt$R
+      subnet.DF[v.in.indx,'Scrt.C'] <- rslt$Z
+    } else {
+      subnet.DF[v.indx,'Amt.S'] <- 0
+    }
     
+    #write results
+    for(i in c(1:length(v.indx))){
+      v.from <- subnet.DF[v.indx[i],'from']
+      v.to <- subnet.DF[v.indx[i],'to']
+      
+      #Update Liabilities - liability from loan propagated downstream
+      newrow <- list('borrower'=root,
+                     'via'=v.from,
+                     'lender'=v.to,
+                     'amount'=subnet.DF[v.indx[i],'Amt.C'],
+                     'rate'=subnet.DF[v.indx[i],'Rate.C'],
+                     'security'=subnet.DF[v.indx[i],'Scrt.C'],
+                     'type'=ifelse(v.from==root,'loan-origin','loan-prop'))
+      ntwk[['val']][[v.from]]$Liabilities <- rbind(ntwk[['val']][[v.from]]$Liabilities, newrow)
+      
+      #Update Assets - bond asset received from borrower
+      newrow <- list('borrower'=root,
+                     'via'=v.from,
+                     'via.trust'=ntwk[['val']][[v.to]]$Portfolio[ntwk[['val']][[
+                       v.to]]$Portfolio$to==v.from,'tot.trust'],
+                     'risk.coef'=ntwk[['val']][[v.to]]$Subj.risk[ntwk[['val']][[
+                       v.to]]$Subj.risk$to==v.from,'Risk.coef'],
+                     'amount'=subnet.DF[v.indx[i],'Amt.C']-subnet.DF[v.indx[i],'Amt.S'],
+                     'rate'=subnet.DF[v.indx[i],'Rate.C'],
+                     'security'=subnet.DF[v.indx[i],'Scrt.C'],
+                     'type'='bond')
+      ntwk[['val']][[v.to]]$Assets <- rbind(ntwk[['val']][[v.to]]$Assets,newrow)
+      
+      #Update Assets - hedge asset sold downstream
+      newrow <- list('borrower'=root,
+                     'via'=v.from,
+                     'via.trust'=ntwk[['val']][[v.to]]$Portfolio[ntwk[['val']][[
+                       v.to]]$Portfolio$to==v.from,'tot.trust'],
+                     'risk.coef'=ntwk[['val']][[v.to]]$Subj.risk[ntwk[['val']][[
+                       v.to]]$Subj.risk$to==v.from,'Risk.coef'],
+                     'amount'=subnet.DF[v.indx[i],'Amt.S'],
+                     'rate'= with(subnet.DF[v.indx[i],],Rate.C-Rate.S),
+                     'security'=with(subnet.DF[v.indx[i],],Scrt.C-Scrt.S),
+                     'type'='contra-hedge')
+      ntwk[['val']][[v.to]]$Assets <- rbind(ntwk[['val']][[v.to]]$Assets,newrow)
+      
+      #Update Liabilities - negative liability from pass-through of loan propagated downstream
+      newrow <- list('borrower'=root,
+                     'via'=v.from,
+                     'lender'=v.to,
+                     'amount'=-subnet.DF[v.indx[i],'Amt.S'],
+                     'rate'= subnet.DF[v.indx[i],'Rate.C'],
+                     'security'= subnet.DF[v.indx[i],'Scrt.C'],
+                     'type'='pass-thru')
+      ntwk[['val']][[v.to]]$Liabilities <- rbind(ntwk[['val']][[v.to]]$Liabilities,newrow)
+      
+    }
     
   }
   
-  browser()
+  for(v in frwd.order){
+    
+    #Remove all NA's and 0s
+    ntwk[['val']][[v]]$Liabilities <- ntwk[['val']][[v]]$Liabilities %>% filter(amount>0)
+    ntwk[['val']][[v]]$Assets <- ntwk[['val']][[v]]$Assets %>% filter(amount>0)
+    
+    #go thru and aggregate assets and out in portfolio
+    #v.from <- which(subnet.DF$from==v)
+    #  v.to <- which(subnet.DF$to==v)
+    
+    #aggregate if needed
+    sumDF <- ntwk[['val']][[v]]$Assets[-c(1:nrow(ntwk[['val']][[v]]$Portfolio.corr)),] %>% 
+      group_by(borrower,via,via.trust,risk.coef,type) %>% 
+      summarise(amount=sum(amount),
+                rate=weighted.mean(rate,amount),
+                security=weighted.mean(security,amount)) %>% 
+      ungroup() %>% select(borrower,risk.coef,via.trust,amount,rate,security)
+    
+    
+    #Update Portfolio - Add bond and contra-hedge
+    #indx.assets <- c((nrow(ntwk[['val']][[v.to]]$Assets)-1):(nrow(ntwk[['val']][[v.to]]$Assets)))
+    indx.ptfl <- c((nrow(ntwk[['val']][[v]]$Portfolio)):(nrow(ntwk[['val']][[v]]$Portfolio)-1+nrow(sumDF)))
+    ntwk[['val']][[v]]$Portfolio[indx.ptfl,] <- sumDF
+    
+    #ntwk[['val']][[v.to]]$Portfolio[indx.ptfl,'tot.trust'] <- NA
+    
+    #Update correlation matrix
+    corr.mtx <- correlation$correlationUpdate(ntwk, v, direction = 'in')
+    sort.indx <- sort(ntwk[['val']][[v]]$Portfolio$to,index.return=TRUE)$ix
+    sort.indx <- sort(sort.indx,index.return=TRUE)$ix
+    corr.mtx <- corr.mtx[sort.indx,sort.indx]
+    
+    #Check which rows are "contra-hedges' (z<0)
+    indx.hedge <- which(ntwk[['val']][[v]]$Portfolio$security<0)
+    corr.mtx[indx.hedge,] <-  corr.mtx[indx.hedge,]*-1
+    corr.mtx[,indx.hedge] <-  corr.mtx[,indx.hedge]*-1
+    diag(corr.mtx) <- 1
+    
+    #Update
+    ntwk[['val']][[v]]$Portfolio.corr <- corr.mtx
+  }
+  return(list('transactions'=subnet.DF,'ntwk'=ntwk))
 }
   
   
