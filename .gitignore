@@ -41,3 +41,7 @@ credentials.R
 app/users-table.RDS
 app on 171023/
 app/rsconnect
+
+*/app/tmp/loanAmount.rda
+*/app/tmp/precookedFwdProp.rds
+*/app/tmp/securitisationRate.rda
