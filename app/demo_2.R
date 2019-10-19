@@ -92,9 +92,9 @@ observeEvent(input$loanGrid_cells_selected, {
           session$userData$interestRate    <- input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), 1]
           session$userData$collateralRate  <- input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), ncol(input$loanGrid_cells_selected)]
           session$userData$loanAmount      <- session$userData$loanTable[input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), 1], input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), ncol(input$loanGrid_cells_selected)]]
-          write(input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), 1], here::here("app/tmp/interestRate.rda"))
-          write(input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), ncol(input$loanGrid_cells_selected)], here::here("app/tmp/securitisationRate.rda"))
-          write(session$userData$loanTable[input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), 1], input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), ncol(input$loanGrid_cells_selected)]], here::here("app/tmp/loanAmount.rda"))
+          write(input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), 1], here::here("app/tmp/interestRate.rds"))
+          write(input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), ncol(input$loanGrid_cells_selected)], here::here("app/tmp/securitisationRate.rds"))
+          write(session$userData$loanTable[input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), 1], input$loanGrid_cells_selected[nrow(input$loanGrid_cells_selected), ncol(input$loanGrid_cells_selected)]], here::here("app/tmp/loanAmount.rds"))
           session$userData$selectedLoan <- TRUE
           output$loanDetails <- renderText({paste0("You wish to borrow $", round(session$userData$loanAmount, 2), " at an interest rate of ", session$userData$interestRate, "% and securitisation ratio of ", session$userData$collateralRate, "%. If you agree, click Proceed.")})
       } else {
