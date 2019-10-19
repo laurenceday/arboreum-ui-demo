@@ -764,7 +764,7 @@ optim.Kumar <- function(corr.mtx, P.in,
     #New constraint: amount purchased+amountSold == Total Consumed
     if(C.TF){
       #constraint values
-      cnsm.ineq <- W[W.optim]+W[S.optim]-Clim
+      cnsm.ineq <- W[W.optim]+ifelse(S.TF,W[S.optim],0)-Clim
       cnst <- c(cnst, cnsm.ineq)
       
       #constraint jacobian
