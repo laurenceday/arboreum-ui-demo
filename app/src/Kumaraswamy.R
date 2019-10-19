@@ -85,6 +85,8 @@ optim.Kumar <- function(corr.mtx, P.in,
     S.optim <- c((nrow(corr.mtx)+1-length(S.FN)):nrow(corr.mtx))
     W.in[S.optim] <- 0.01
     n.S <- length(S.optim)
+  } else {
+    S.optim <- integer(0)
   }
   
   if(any(is.na(W.in))) {
