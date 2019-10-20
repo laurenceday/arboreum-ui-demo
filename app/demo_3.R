@@ -10,14 +10,20 @@ source(here::here("app/src/Generate.R"))
 source(here::here("app/src/Propagate.R"))
 source(here::here("app/src/Traverse.R"))
 
-postBrw.ntwk <- readRDS(here::here("app/tmp/precookedFwdProp.rds"))
-precookedFwdPropTxes <- postBrw.ntwk$transactions
-precookedFwdPropNtwk <- postBrw.ntwk$ntwk
+postBrwTransactions <- readRDS(here::here("app/tmp/precookedFwdTransactions.rds"))
+postBrwNetwork      <- readRDS(here::here("app/tmp/precookedFwdNetwork.rds"))
+fwdPropExposures    <- readRDS(here::here("app/tmp/precookedFwdPropExposures.rds"))
 
-yourPortfolio <- precookedFwdProp$val[[1]]$Portfolio
+postBrwAssets <- postBrwNetwork$val[[1]]$Assets
+postBrwLiabilities <- postBrwNetwork$val[[1]]$Liabilities
 
 output$yourAssets <- DT::renderDataTable({
-  as.data.frame(yourPortfolio)
+  as.data.frame(postBrwAssets)
+})
+
+
+output$yourLiabilities <- DT::renderDataTable({
+  as.data.frame(postBrwLiabilities)
 })
 
 output$pageStub <- renderUI({rv$limn; isolate({
@@ -33,9 +39,8 @@ output$pageStub <- renderUI({rv$limn; isolate({
                HTML("<h4>Your Loan Terms</h4>"),
                textOutput("chosenLoan"),
                HTML("<h4>Your Balance Sheet</h4>"),
-               fluidRow(column(3, offset=0, renderTable(yourAssets)), column(3, offset=0, renderTable(yourLiabilities))),
-               fluidRow(column(3, offset=0, actionButton('backToStage2', "Previous")), column(3, offset=0, actionButton('stage4', label='Proceed')))
-        ),
+               DT::dataTableOutput("yourAssets"),
+               DT::dataTableOutput("yourLiabilities")        ),
         column(4, offset=0,
                HTML("<h3>Your Network Impact</h3>")
         )
