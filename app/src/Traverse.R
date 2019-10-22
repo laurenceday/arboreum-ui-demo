@@ -141,7 +141,7 @@ calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'out'
                                      c('from', 'to', paste0(ntwk.attr, '.coef')))) %>% 
     dplyr::left_join(igraph::as_long_data_frame(ntwk.i) %>% dplyr::select(from, to, from_deg, to_deg)) %>%
     arrange(from, to)
-  edges.Mtx <- as.matrix(edges.Mtx[complete.cases(edges.Mtx),])
+  edges.Mtx <- base::as.matrix(edges.Mtx[complete.cases(edges.Mtx),])
   colnames(edges.Mtx)[colnames(edges.Mtx) == ntwk.attr] <- 'Trust'
   colnames(edges.Mtx)[colnames(edges.Mtx) == paste0(ntwk.attr, '.coef')] <- 'Trust.coef'
   edges.Mtx[edges.Mtx[, 'Trust.coef']>0.995 , 'Trust.coef'] <- 0.995
