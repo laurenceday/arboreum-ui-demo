@@ -43,7 +43,7 @@ trust2Risk.solve <- function(ntwk, v, assets, equity, p.bwidth = NULL, p.scale =
   edges.out <- sapply(v.out, function (x)  network::get.dyads.eids(ntwk, v, x, neighborhood = direction)[[1]])
   
   #corresponding network attribute
-  trust.out <- network::get.edge.attribute(ntwk, ntwk.attr)[edges.out]
+  trust.out <- sapply(ntwk$mel[edges.out],function(x) x$atl[[ntwk.attr]]) #network::get.edge.attribute(ntwk, ntwk.attr)[edges.out]
   
   #compute current trust weights, append entry for equity earning risk-free rate
   weights <- trust.out/sum(trust.out)*(assets-equity)/assets
