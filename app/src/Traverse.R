@@ -2,7 +2,10 @@ library(network)
 library(dplyr)
 library(stats)
 library(Hmisc)
-
+library(doParallel)
+library(bigmemory)
+library(foreach)
+library(predictionet)
 
 source(here::here("app/src/Utils.R"), local=TRUE)
 
@@ -18,7 +21,7 @@ source(here::here("app/src/Utils.R"), local=TRUE)
 #' @export
 #'
 #' @examples
-calcRiskArray <- function(ntwk, ntwk.attr = 'Risk', direction = 'out', max.depth = 10, converge = FALSE) {
+calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'out', max.depth = 6, converge = FALSE,runParallel=TRUE) {
   
   #' Recursively traverse network and calculate how trust cascades indirectly from origin to other nodes
   #' see Sun, Zhu, YHn (2006) Information Theoretic Framework for Trust Modeling for equations to update trust
@@ -144,17 +147,58 @@ calcRiskArray <- function(ntwk, ntwk.attr = 'Risk', direction = 'out', max.depth
   edges.Mtx[edges.Mtx[, 'Trust.coef']>0.995 , 'Trust.coef'] <- 0.995
   edges.Mtx[edges.Mtx[, 'Trust.coef']<0.505 , 'Trust.coef'] <- 0.505
   
+#Remove any cycles just in case
+  edges2delete <- mapply(function(x) { ifelse(is.data.frame(ntwk$val[[x]]$Portfolio),
+                                      setdiff(ntwk$val[[x]]$Portfolio$to,get.neighborhood(ntwk,x,'in')),
+                                      NA)},x=c(1:n.vrt))
+  
+  #check if directed acyclic graph
+  x.dag <- predictionet::adj.remove.cycles(network::as.matrix.network(ntwk,matrix.type='adjacency'),
+                                           maxlength = max.depth)
+  x.dag <- which(x.dag$adjmat.removed, arr.ind = TRUE)
+  colnames(x.dag) <- c('from', 'to')
+  if(nrow(x.dag)>0){
+    indx <- match(paste(x.dag[,'to'],x.dag[,'from'],sep='.'),
+                  paste(edges.Mtx[,'from'],edges.Mtx[,'to'],sep='.'))
+    edges.Mtx <- edges.Mtx[-indx[!is.na(indx)],]
+  }
+  
   #build container
   risk.mtx  <- matrix(nrow = n.vrt, ncol = n.vrt)
   
   #calculate how trust cascades indirectly
-  for(i in c(1:n.vrt)) {
-    z <- traverse.CalcTrust(ntwk, i, edges.Mtx, direction = 'in', converge = converge)
-    z <- z[complete.cases(z),]
-    if(all(z[,1]>0)) {
-      risk.mtx[i, z[[1]]] <- z[[2]] #store row-wise 
+  if(length(nodes)==0){nodes <- c(1:n.vrt)} #else {browser()}
+  
+  if(runParallel){
+    #parallelize
+    no_cores <- parallel::detectCores() - 2  
+    registerDoParallel(cores = no_cores)  
+    ostype <- if (Sys.info()[['sysname']] == 'Windows') {"PSOCK"} else {"FORK"}
+    clst <- parallel::makeCluster(no_cores, type = ostype)
+    on.exit(parallel::stopCluster(clst))
+    #data storage object
+    V <- big.matrix(n.vrt,n.vrt)
+    desc <- describe(V)
+    #parallel for loop
+    result = foreach(i = nodes)%dopar%
+    {
+      V <- bigmemory::attach.big.matrix(desc)
+      z <- traverse.CalcTrust(ntwk, i, edges.Mtx, direction = 'in', converge = converge)
+      z <- z[complete.cases(z),]
+      if(all(z[,1]>0)) {
+        V[i, z[[1]]] <- z[[2]] #store row-wise 
+      }
     }
-    print(paste('v', i))
+    risk.mtx <- as.matrix(V)
+  } else {
+    for(i in nodes) {
+      z <- traverse.CalcTrust(ntwk, i, edges.Mtx, direction = 'in', converge = converge)
+      z <- z[complete.cases(z),]
+      if(all(z[,1]>0)) {
+        risk.mtx[i, z[[1]]] <- z[[2]] #store row-wise 
+      }
+      print(paste('v', i))
+    }
   }
   
   #calculate beta distribution representation of risk
