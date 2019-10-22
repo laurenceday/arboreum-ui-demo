@@ -738,8 +738,6 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
     print(paste0('Frwd-Prop from {',paste(prop.mtx[,'from'],collapse=',') ,'} to ',v))
     
     #vertices to propagate to
-    v.in <- paste0(subntwk.EL[subntwk.EL[, 'from']== v, 'to'], '_', v,'.',root)
-    v.in.indx <- match(sapply(strsplit(v.in, "\\."), "[", 1),paste0(subnet.DF[,2],'_',subnet.DF[,1]))
     
     if(length(subntwk.EL[subntwk.EL[, 'from']== v, 'to'])>0){
       v.in <- paste0(subntwk.EL[subntwk.EL[, 'from']== v, 'to'], '_', v,'.',root)
