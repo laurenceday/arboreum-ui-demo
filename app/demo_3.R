@@ -21,9 +21,12 @@ output$yourAssets <- DT::renderDataTable({
   as.data.frame(postBrwAssets)
 })
 
-
 output$yourLiabilities <- DT::renderDataTable({
   as.data.frame(postBrwLiabilities)
+})
+
+output$precookedTransactions <- DT::renderDataTable({
+  as.data.frame(postBrwTransactions)
 })
 
 output$pageStub <- renderUI({rv$limn; isolate({
@@ -38,9 +41,13 @@ output$pageStub <- renderUI({rv$limn; isolate({
                HTML("Let's see how Arboreum has distributed your loan.<br>As you can see, your immediate peers have taken on the highest risk, but also make the highest return."),
                HTML("<h4>Your Loan Terms</h4>"),
                textOutput("chosenLoan"),
+               HTML("<h3>Loan Transactions</h3>"),
+               DT::dataTableOutput("precookedTransactions"),
                HTML("<h4>Your Balance Sheet</h4>"),
+               HTML("<h3>Assets</h3>"),
                DT::dataTableOutput("yourAssets"),
-               DT::dataTableOutput("yourLiabilities")        ),
+               HTML("<h3>Liabilities</h3>"),
+               DT::dataTableOutput("yourLiabilities")),
         column(4, offset=0,
                HTML("<h3>Your Network Impact</h3>")
         )
