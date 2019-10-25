@@ -21,7 +21,7 @@ source(here::here("app/src/Utils.R"), local=TRUE)
 #' @export
 #'
 #' @examples
-calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'out', max.depth = 6, converge = FALSE,runParallel=TRUE) {
+calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'in', max.depth = 6, converge = FALSE,runParallel=TRUE) {
   
   #' Recursively traverse network and calculate how trust cascades indirectly from origin to other nodes
   #' see Sun, Zhu, YHn (2006) Information Theoretic Framework for Trust Modeling for equations to update trust
@@ -41,7 +41,7 @@ calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'out'
   #'
   #' @examples
   print('Entering function')
-  traverse.CalcTrust <- function(ntwk, v.orgn, edgeMtx, direction = 'out', max.depth = 10, crnt.depth = 0, v.visited = c(), converge = FALSE) {
+  traverse.CalcTrust <- function(ntwk, v.orgn, edgeMtx, direction = 'in', max.depth = 10, crnt.depth = 0, v.visited = c(), converge = FALSE) {
     
     #choose which direction to propogate trust
     if(direction == 'out') {
@@ -147,19 +147,23 @@ calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'out'
   edges.Mtx[edges.Mtx[, 'Trust.coef']>0.995 , 'Trust.coef'] <- 0.995
   edges.Mtx[edges.Mtx[, 'Trust.coef']<0.505 , 'Trust.coef'] <- 0.505
   
-#Remove any cycles just in case
+  #generate nodes if not passed in as arg
+  if(length(nodes)==0){nodes <- c(1:n.vrt)}
+  
+  #Remove any cycles just in case
   edges2delete <- mapply(function(x) { ifelse(is.data.frame(ntwk$val[[x]]$Portfolio),
                                       setdiff(ntwk$val[[x]]$Portfolio$to,get.neighborhood(ntwk,x,'in')),
                                       NA)},x=c(1:n.vrt))
   
-  #check if directed acyclic graph
+  #check if directed acyclic graph and remove corresponding edges
   x.dag <- predictionet::adj.remove.cycles(network::as.matrix.network(ntwk,matrix.type='adjacency'),
                                            maxlength = max.depth)
   x.dag <- which(x.dag$adjmat.removed, arr.ind = TRUE)
-  colnames(x.dag) <- c('from', 'to')
-  if(nrow(x.dag)>0){
-    indx <- match(paste(x.dag[,'to'],x.dag[,'from'],sep='.'),
-                  paste(edges.Mtx[,'from'],edges.Mtx[,'to'],sep='.'))
+  colnames(x.dag) <- c('from', 'to') 
+  x.dag <- x.dag[x.dag[,'to'] %in% setdiff(x.dag[,'to'],nodes),] #direction='in'
+  if(nrow(x.dag)>0 & length(nodes)<n.vrt){
+    indx <- match(paste(x.dag[,'from'],x.dag[,'to'],sep='.'),
+                  paste(edges.Mtx[,'from'],edges.Mtx[,'to'],sep='.')) #for direction='in'
     edges.Mtx <- edges.Mtx[-indx[!is.na(indx)],]
   }
   
@@ -167,8 +171,6 @@ calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'out'
   risk.mtx  <- matrix(nrow = n.vrt, ncol = n.vrt)
   
   #calculate how trust cascades indirectly
-  if(length(nodes)==0){nodes <- c(1:n.vrt)} #else {browser()}
-  
   if(runParallel){
     #parallelize
     no_cores <- parallel::detectCores() - 2  
@@ -183,7 +185,7 @@ calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'out'
     result = foreach(i = nodes)%dopar%
     {
       V <- bigmemory::attach.big.matrix(desc)
-      z <- traverse.CalcTrust(ntwk, i, edges.Mtx, direction = 'in', converge = converge)
+      z <- traverse.CalcTrust(ntwk, i, edges.Mtx, direction = direction, converge = converge)
       z <- z[complete.cases(z),]
       if(all(z[,1]>0)) {
         V[i, z[[1]]] <- z[[2]] #store row-wise 
@@ -192,7 +194,7 @@ calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'out'
     risk.mtx <- as.matrix(V)
   } else {
     for(i in nodes) {
-      z <- traverse.CalcTrust(ntwk, i, edges.Mtx, direction = 'in', converge = converge)
+      z <- traverse.CalcTrust(ntwk, i, edges.Mtx, direction = direction, converge = converge)
       z <- z[complete.cases(z),]
       if(all(z[,1]>0)) {
         risk.mtx[i, z[[1]]] <- z[[2]] #store row-wise 
@@ -205,24 +207,23 @@ calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'out'
   dist.mtx <- igraph::distances(ntwk.i, mode = direction)
   risk.array <- array(dim = c(nrow(risk.mtx), ncol(risk.mtx),4))
   risk.array[,,1] <- risk.mtx
-  for(v in which(!is.na(risk.mtx))) {
-    i <- v%%n.vrt #from
-    j <- ceiling(v/n.vrt) #to
-    #row represents judgements of risk by other vertices
-    x <- risk.mtx[!is.na(risk.mtx[, j]), j]
-    wgt.j <- dist.mtx[!is.na(risk.mtx[, j]), i]+1
+  for(v in which(!is.na(risk.mtx))) { #iterates over all non-NA cells
+    i <- v%%n.vrt #row of cell (node doing assessing)
+    i <- ifelse(i==0,n.vrt,i) #if modulus is 0 then last row
+    j <- ceiling(v/n.vrt) #col of cell (node being assessed)
+    x <- risk.mtx[!is.na(risk.mtx[, j]), j] #select column representing judgements of risk by other nodes
+    wgt.j <- dist.mtx[i,!is.na(risk.mtx[, j])]+1
     wgt.j[!is.finite(wgt.j)] <- max(dist.mtx[is.finite(dist.mtx)])+2
     muHat <- weighted.mean(x,1/wgt.j)
     varHat <- Hmisc::wtd.var(x,1/wgt.j)
     
-    risk.array[i, j,2] <- muHat^2*((1-muHat)/varHat-1/muHat) # alpha
-    risk.array[i, j,3] <- risk.array[i, j,2]*(1/muHat-1) # beta
-    risk.array[i, j,4] <- risk.mtx[v]-muHat # offset
-    if(any(!is.finite(risk.array[i,j,]))){browser()}
+    risk.array[i, j,2] <- muHat^2*((1-muHat)/varHat-1/muHat)
+    risk.array[i, j,3] <- risk.array[i, j,2]*(1/muHat-1)
+    risk.array[i, j,4] <- risk.mtx[v]-muHat
   }
   
   #append to network
-  network::set.vertex.attribute(ntwk, 'Subj.risk', NA)
+  set.vertex.attribute(ntwk, 'Subj.risk', NA)
   for(v in c(1:n.vrt)) {
     mtx <- risk.array[v,,]
     indx <- which(!is.na(mtx[,1]))
@@ -231,5 +232,6 @@ calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'out'
     colnames(mtx) <- c('to', 'Risk.coef', 'alpha.Beta', 'beta.Beta', 'offest.Beta')
     ntwk[['val']][[v]]$Subj.risk <- as.data.frame(mtx)
   }
-  return (list(risk.array, ntwk))
+  return (list('risk.array'=risk.array, 'ntwk'=ntwk))
 }
+
