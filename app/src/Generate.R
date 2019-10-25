@@ -303,7 +303,7 @@ buildCorePeri <-  function(N = 50, K = 5,
     net.all <- igraph::add.edges(net.all, c(t(as.matrix(edges.base2core[, c(1,2)]))))
     
     #Remove cycles
-    ntwk <- predictionet::adj.remove.cycles(igraph::as_adjacency_matrix(net.all, sparse = FALSE), maxlength = round(igraph::gorder(net.all)/2),2)
+    ntwk <- predictionet::adj.remove.cycles(igraph::as_adjacency_matrix(net.all, sparse = FALSE), maxlength = 10) #round(igraph::gorder(net.all)/2),2
     return (as.network(ntwk$adjmat.acyclic, directed = TRUE))
   }
   
