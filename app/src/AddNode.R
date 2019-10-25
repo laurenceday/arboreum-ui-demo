@@ -1,8 +1,8 @@
-import(dplyr)
-import(predictionet)
-import(MCMCpack)
-import(network)
-import(stats)
+library(dplyr)
+library(predictionet)
+library(MCMCpack)
+library(network)
+library(stats)
 
 correlation <- modules::use(here::here("PortfolioCorrelation.R"))
 trustRisk <- modules::use(here::here("TrustToRisk.R"))
