@@ -47,9 +47,12 @@ output$pageStub <- renderUI({rv$limn; isolate({
                HTML("<h3>Assets</h3>"),
                DT::dataTableOutput("yourAssets"),
                HTML("<h3>Liabilities</h3>"),
-               DT::dataTableOutput("yourLiabilities")),
+               DT::dataTableOutput("yourLiabilities"),
+               fluidRow(column(3, offset=0, actionButton('backToStage1', "Previous")), column(3, offset=0, actionButton('stage3', label='Proceed')))),
+        
         column(4, offset=0,
-               HTML("<h3>Your Network Impact</h3>")
+               HTML("<h3>Your Network Impact</h3>"),
+               
         )
       )
     )
@@ -57,3 +60,12 @@ output$pageStub <- renderUI({rv$limn; isolate({
   return(pageText)     # This is an "explicit return". Remeber that renderUI() is an R function!
 })})
 
+
+observeEvent(input$backToStage2, {
+  js$redirect("?demo_2")
+})
+
+
+observeEvent(input$stage4, {
+  js$redirect("?demo_1")
+})
