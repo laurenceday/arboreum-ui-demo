@@ -45,3 +45,8 @@ app/rsconnect
 */app/tmp/loanAmount.rda
 */app/tmp/precookedFwdProp.rds
 */app/tmp/securitisationRate.rda
+app/tmp/currentStateNtwk.rds
+app/tmp/interestRate.rds
+app/tmp/loanAmount.rds
+app/tmp/securitisationRate.rds
+app/users-table.RDS
