@@ -155,7 +155,7 @@ addNode2Ntwk <- function(ntwk,risk.array,assets,out.DF,in.DF=NULL,direction='in'
   rslt <- traverse$calcRiskArray(ntwk,nodes=nodes2update)
   
   #update risk.mtx
-  risk.mtx <- rslt$risk.array[,,1]
+  risk.mtx <- risk.array[,,1]
   risk.mtx <- rbind(cbind(risk.mtx,rep(NA,nrow(risk.mtx))),rep(NA,ncol(risk.mtx)+1)) #append column and row
   indx <- which(!is.na(rslt$risk.array),arr.ind=TRUE)
   risk.mtx[indx] <- rslt$risk.array[indx]
