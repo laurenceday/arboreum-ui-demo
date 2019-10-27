@@ -26,6 +26,7 @@ output$pageStub <- renderUI({rv$limn; isolate({
         column(12, offset=1,
                HTML("Now, let us assume that you would like to take out a loan for some purpose. Let's follow how this process works."),
                HTML("<h3>Step 1: Select Your Parameters</h3>"),
+               numericInput('minLoanAmount', label="Minimum Loan Amount", value = 0, max = 10000),
                numericInput('maxInterestRate', label="Maximum Interest Rate", value = 0, max = 25),
                numericInput('maxCollateralRate', label="Maximum Collateral Percentage", value = 0, max = 8000),
                fluidRow(column(6, offset=1, actionButton('computeBackprop', label="Calculate Available Loans")),column(6, offset=1, "NOTE: This will take some time.")),
@@ -45,6 +46,7 @@ output$pageStub <- renderUI({rv$limn; isolate({
 
 observeEvent(input$computeBackprop, {
   showNotification("Calculating... this may take some time - go get a coffee.", type="warning", duration=30)
+  session$userData$minLoanAmount      <- input$minLoanAmount
   session$userData$maxInterestRate    <- input$maxInterestRate
   session$userData$maxCollateralRate  <- input$maxCollateralRate
   
@@ -55,12 +57,12 @@ observeEvent(input$computeBackprop, {
   session$userData$riskArray          <- suppressWarnings(calcRiskArray(session$userData$baseNetwork))
   session$userData$propNetwork        <- session$userData$riskArray[[2]]
   
-  session$userData$loanTable          <- suppressWarnings(loan.backProp(session$userData$propNetwork, 1, algorithm ="NLOPT_GN_ISRES", browse = FALSE,
-                                                             controls = list(controls = list(xtol_rel = 0.1,
-                                                                                             xtol_abs = c(rep(0.1,2),0.01,0.01),
-                                                                                             relax = FALSE, maxeval = 1000,
-                                                                                             risk.coef = 'Bernoulli',
-                                                                                             span = 0.5))))
+  session$userData$loanTable          <- loan.backProp(session$userData$propNetwork, 1, algorithm ="NLOPT_GN_ISRES", browse = FALSE,
+                                                       controls = list(controls = list(xtol_rel = 0.1,
+                                                                                       xtol_abs = c(rep(0.1,2),0.01,0.01),
+                                                                                       relax = FALSE, maxeval = 1000,
+                                                                                       risk.coef = 'Bernoulli',
+                                                                                       span = 0.5)))
   saveRDS(session$userData$loanTable, here::here("app/tmp/myLoanTable.rds"))
   session$userData$Slist              <- session$userData$loanTable$S.list
 
