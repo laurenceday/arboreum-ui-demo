@@ -122,7 +122,7 @@ addNode2Ntwk <- function(ntwk,risk.array,assets,out.DF,in.DF=NULL,direction='in'
     }
   }
   
-  #function to get local edgelist
+ #function to get local edgelist
   rtrv.lcl.Edgelist <- function(ntwk, v, max.dist = 6) {
     
     #fetch edgelist
@@ -152,24 +152,31 @@ addNode2Ntwk <- function(ntwk,risk.array,assets,out.DF,in.DF=NULL,direction='in'
   nodes2update <- sort(unique(c(rtrv.lcl.Edgelist(ntwk,n.vrt+1))))  
   
   #Update risk array
-  rslt <- traverse$calcRiskArray(ntwk,nodes=nodes2update)
+  rslt <- tryCatch({traverse$calcRiskArray(ntwk,nodes=nodes2update)}, 
+            error = function(e) {
+              browser()
+              traverse$calcRiskArray(ntwk,nodes=nodes2update,parallel=FALSE)
+          })
   
   #update risk.mtx
   risk.mtx <- risk.array[,,1]
   risk.mtx <- rbind(cbind(risk.mtx,rep(NA,nrow(risk.mtx))),rep(NA,ncol(risk.mtx)+1)) #append column and row
-  indx <- which(!is.na(rslt$risk.array),arr.ind=TRUE)
-  risk.mtx[indx] <- rslt$risk.array[indx]
+  indx <- which(!is.na(rslt$risk.array[,,1]),arr.ind=TRUE)
+  risk.mtx.new <- rslt$risk.array[,,1]
+  risk.mtx[indx] <- risk.mtx.new[indx]
+  rm(risk.mtx.new)
   
   #calculate beta distribution representation of risk
   dist.mtx <- igraph::distances(utils$ntwk2igraph.cvrt(ntwk), mode = direction)
   risk.array <- array(dim = c(nrow(risk.mtx), ncol(risk.mtx),4))
   risk.array[,,1] <- risk.mtx
+  n.vrt <- n.vrt+1
   for(v in which(!is.na(risk.mtx))) { #iterates over all non-NA cells
     i <- v%%n.vrt #row of cell (node doing assessing)
     i <- ifelse(i==0,n.vrt,i) #if modulus is 0 then last row
     j <- ceiling(v/n.vrt) #col of cell (node being assessed)
     x <- risk.mtx[!is.na(risk.mtx[, j]), j] #select column representing judgements of risk by other nodes
-    wgt.j <- dist.mtx[i,!is.na(risk.mtx[, j])]+1
+    wgt.j <- tryCatch({dist.mtx[i,!is.na(risk.mtx[, j])]+1}, error = function(e) {browser()})
     wgt.j[!is.finite(wgt.j)] <- max(dist.mtx[is.finite(dist.mtx)])+2
     muHat <- weighted.mean(x,1/wgt.j)
     varHat <- Hmisc::wtd.var(x,1/wgt.j)
