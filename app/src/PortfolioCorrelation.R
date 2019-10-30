@@ -21,18 +21,16 @@ correlationUpdate <- function(ntwk, v, v.new = c(), p.bwidth = NULL, p.scale = 1
     df <- ntwk[['val']][[v]]$Portfolio
     v.ptfl <- sort(c(df$to, v.new))
   } else {
-    
     #get attributes from network make dataframe and attach outgoing neighbor vertices
     v.out <- network::get.neighborhood(ntwk, v, direction)
     v.ptfl <- sort(unique(c(v.out, v.new)))
-    
-    #stop if no neighbors
-    if(length(v.ptfl) == 0) {
-      return (NA)
-    }
-    if(length(v.ptfl) == 1) {
-      return (matrix(1,1,1))
-    }
+  }
+  #stop if no neighbors
+  if(length(v.ptfl) == 0) {
+    return (NA)
+  }
+  if(length(v.ptfl) == 1) {
+    return (matrix(1,1,1))
   }
   ntwk.i <- ntwk2igraph.cvrt(ntwk)
   
