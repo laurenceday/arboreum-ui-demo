@@ -500,9 +500,9 @@ cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),zLim = 0.99, rLi
   P.indx <- c(1,2,3)
   
   #limit amount that can be lent
-  amt.lent <- ptfl.DF[match(orgn.brw.mtx[,1], ptfl.DF$to),'lent']
+  amt.lent <- ptfl.DF[match(prop.mtx[,2], ptfl.DF$to),'lent']
   amt.lent[is.na(amt.lent)] <- 0
-  tot.trust <- sapply(orgn.brw.mtx[,1],
+  tot.trust <- sapply(prop.mtx[,2],
                       function(x) ntwk$mel[[network::get.dyads.eids(ntwk, v, x, neighborhood = 'in')[[1]]]]$atl$Trust)
   lend.lim <- tot.trust-amt.lent
   names(lend.lim) <- prop.mtx[,1]
