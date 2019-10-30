@@ -802,6 +802,7 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
                      'rate'=subnet.DF[v.indx[i],'Rate.C'],
                      'security'=subnet.DF[v.indx[i],'Scrt.C'],
                      'type'=ifelse(v.from==root,'loan-origin','loan-prop'))
+      newrow <- lapply(newrow,function(x) ifelse(length(x)==0,NA,x))
       ntwk[['val']][[v.from]]$Liabilities <- rbind(ntwk[['val']][[v.from]]$Liabilities, newrow)
       
       #Update Assets - bond asset received from borrower
@@ -815,6 +816,7 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
                      'rate'=subnet.DF[v.indx[i],'Rate.C'],
                      'security'=subnet.DF[v.indx[i],'Scrt.C'],
                      'type'='bond')
+      newrow <- lapply(newrow,function(x) ifelse(length(x)==0,NA,x))
       ntwk[['val']][[v.to]]$Assets <- rbind(ntwk[['val']][[v.to]]$Assets,newrow)
       
       #Update Assets - hedge asset sold downstream
@@ -828,6 +830,7 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
                      'rate'= with(subnet.DF[v.indx[i],],Rate.C-Rate.S),
                      'security'=with(subnet.DF[v.indx[i],],Scrt.C-Scrt.S),
                      'type'='contra-hedge')
+      newrow <- lapply(newrow,function(x) ifelse(length(x)==0,NA,x))
       ntwk[['val']][[v.to]]$Assets <- rbind(ntwk[['val']][[v.to]]$Assets,newrow)
       
       #Update Liabilities - negative liability from pass-through of loan propagated downstream
@@ -838,6 +841,7 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
                      'rate'= subnet.DF[v.indx[i],'Rate.C'],
                      'security'= subnet.DF[v.indx[i],'Scrt.C'],
                      'type'='pass-thru')
+      newrow <- lapply(newrow,function(x) ifelse(length(x)==0,NA,x))
       ntwk[['val']][[v.to]]$Liabilities <- rbind(ntwk[['val']][[v.to]]$Liabilities,newrow)
       
     }
