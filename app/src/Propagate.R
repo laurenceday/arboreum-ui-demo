@@ -93,7 +93,11 @@ cnsm.ZR.backsolve <- function(ntwk, v, orgn.brw.mtx, S.out = list(),
   P.indx <- c(1,2,3)
   
   #limit amount that can be lent
-  lend.lim <- with(ptfl.DF[match(orgn.brw.mtx[,1], ptfl.DF$to),], tot.trust-lent)
+  amt.lent <- ptfl.DF[match(orgn.brw.mtx[,1], ptfl.DF$to),'lent']
+  amt.lent[is.na(amt.lent)] <- 0
+  tot.trust <- sapply(orgn.brw.mtx[,1],
+                      function(x) ntwk$mel[[network::get.dyads.eids(ntwk, v, x, neighborhood = 'in')[[1]]]]$atl$Trust)
+  lend.lim <- tot.trust-amt.lent
   names(lend.lim) <- orgn.brw.mtx[,2]
   lend.df <- as.data.frame(list(Orgn = orgn.brw.mtx[,1], Brw = orgn.brw.mtx[,2], lend.lim = lend.lim))%>%
     group_by(Brw)%>%mutate(lend.pct = lend.lim/sum(lend.lim)) #to divy up consumption by originators
@@ -496,7 +500,11 @@ cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),zLim = 0.99, rLi
   P.indx <- c(1,2,3)
   
   #limit amount that can be lent
-  lend.lim <- with(ptfl.DF[match(prop.mtx[,2], ptfl.DF$to),], tot.trust-lent)
+  amt.lent <- ptfl.DF[match(orgn.brw.mtx[,1], ptfl.DF$to),'lent']
+  amt.lent[is.na(amt.lent)] <- 0
+  tot.trust <- sapply(orgn.brw.mtx[,1],
+                      function(x) ntwk$mel[[network::get.dyads.eids(ntwk, v, x, neighborhood = 'in')[[1]]]]$atl$Trust)
+  lend.lim <- tot.trust-amt.lent
   names(lend.lim) <- prop.mtx[,1]
   lend.df <- as.data.frame(list(Orgn = prop.mtx[,2], Brw = prop.mtx[,2], lend.lim = lend.lim))%>%
               group_by(Brw)%>%mutate(lend.pct = lend.lim/sum(lend.lim)) #to divy up consumption by originators
