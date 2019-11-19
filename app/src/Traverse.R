@@ -180,7 +180,7 @@ calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'in',
     on.exit(parallel::stopCluster(clst))
     #data storage object
     V <- big.matrix(n.vrt,n.vrt)
-    desc <- describe(V)
+    desc <- bigmemory::describe(V)
     #parallel for loop
     result = foreach(i = nodes)%dopar%
     {
