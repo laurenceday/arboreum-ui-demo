@@ -24,14 +24,14 @@
 # library(doParallel)
 # library(bigmemory)
 
-import(MASS)
-import(igraph)
+library(MASS)
+library(igraph)
 detach("package:igraph")
-import(network)
-import(sna)
+library(network)
+library(sna)
 
-import(modules)
-import(here)
+library(modules)
+library(here)
 
 #### Functions to generate Ntwk #####
 

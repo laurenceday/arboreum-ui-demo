@@ -1,7 +1,6 @@
-
 import(stats)
 
-use(here::here("app/src/PortfolioCorrelation.R"), local=TRUE)
+portfolio <- modules::use(here::here("app/src/PortfolioCorrelation.R"))
 
 #' Computes a binomial probability for "Trust" of a node given the below information
 #'
@@ -24,7 +23,7 @@ trust2Risk.solve <- function(ntwk, v, assets, equity, p.bwidth = NULL, p.scale =
   if(is.matrix(ntwk[['val']][[v]]$Portfolio.corr)) {
     corr.mtx <- ntwk[['val']][[v]]$Portfolio.corr
   } else {
-    corr.mtx <- correlationUpdate(ntwk, v, p.bwidth = p.bwidth, p.scale = p.scale, direction = direction)
+    corr.mtx <- portfolio$correlationUpdate(ntwk, v, p.bwidth = p.bwidth, p.scale = p.scale, direction = direction)
   }
   
   #outgoing neighbor vertices
@@ -43,7 +42,7 @@ trust2Risk.solve <- function(ntwk, v, assets, equity, p.bwidth = NULL, p.scale =
   edges.out <- sapply(v.out, function (x)  network::get.dyads.eids(ntwk, v, x, neighborhood = direction)[[1]])
   
   #corresponding network attribute
-  trust.out <- sapply(ntwk$mel[edges.out],function(x) x$atl[[ntwk.attr]]) #network::get.edge.attribute(ntwk, ntwk.attr)[edges.out]
+  trust.out <- sapply(ntwk$mel[edges.out],function(x) x$atl[[ntwk.attr]])#network::get.edge.attribute(ntwk, ntwk.attr)[edges.out]
   
   #compute current trust weights, append entry for equity earning risk-free rate
   weights <- trust.out/sum(trust.out)*(assets-equity)/assets

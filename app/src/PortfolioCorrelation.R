@@ -1,6 +1,6 @@
 import(Matrix)
 
-use(here::here("app/src/Utils.R"), local=TRUE)
+utils     <- modules::use(here::here("app/src/Utils.R"))
 
 #' Computes/Updates correlation matrix of the portfolio of assets (loans made to others) for vertex in network
 #'
@@ -25,6 +25,7 @@ correlationUpdate <- function(ntwk, v, v.new = c(), p.bwidth = NULL, p.scale = 1
     v.out <- network::get.neighborhood(ntwk, v, direction)
     v.ptfl <- sort(unique(c(v.out, v.new)))
   }
+  
   #stop if no neighbors
   if(length(v.ptfl) == 0) {
     return (NA)
@@ -32,7 +33,8 @@ correlationUpdate <- function(ntwk, v, v.new = c(), p.bwidth = NULL, p.scale = 1
   if(length(v.ptfl) == 1) {
     return (matrix(1,1,1))
   }
-  ntwk.i <- ntwk2igraph.cvrt(ntwk)
+  
+  ntwk.i <- utils$ntwk2igraph.cvrt(ntwk)
   
   if(is.null(p.bwidth)) {
     p.bwidth = 1/igraph::mean_distance(ntwk.i)

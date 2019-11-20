@@ -7,7 +7,7 @@ import(bigmemory)
 import(foreach)
 import(predictionet)
 
-use(here::here("app/src/Utils.R"), local=TRUE)
+utils    <- modules::use(here::here("app/src/Utils.R"))
 
 #' Traverse network and calculate how trust cascades 
 #' see Sun, Zhu, Han (2006) Information Theoretic Framework for Trust Modeling for equations to update trust
@@ -21,7 +21,7 @@ use(here::here("app/src/Utils.R"), local=TRUE)
 #' @export
 #'
 #' @examples
-calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'in', max.depth = 6, converge = FALSE,runParallel=TRUE) {
+calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'in', max.depth = 10, converge = FALSE,runParallel=TRUE) {
   
   #' Recursively traverse network and calculate how trust cascades indirectly from origin to other nodes
   #' see Sun, Zhu, YHn (2006) Information Theoretic Framework for Trust Modeling for equations to update trust
@@ -40,7 +40,6 @@ calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'in',
   #' @export
   #'
   #' @examples
-  print('Entering function')
   traverse.CalcTrust <- function(ntwk, v.orgn, edgeMtx, direction = 'in', max.depth = 10, crnt.depth = 0, v.visited = c(), converge = FALSE) {
     
     #choose which direction to propogate trust
@@ -122,24 +121,24 @@ calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'in',
       } else { #make exception for original trust values
         prpg.trust.Mtx <-prpg.trust.Mtx[prpg.trust.Mtx$Dest %in% setdiff(prpg.trust.Mtx$Dest, amt.trust.Mtx$Dest),
                                         c('Dest', 'Trust.dest')]
-        if (nrow(prpg.trust.Mtx) > 0) 
-        {amt.trust.Mtx[c((nrow(amt.trust.Mtx)+1):(nrow(amt.trust.Mtx)+nrow(prpg.trust.Mtx))),] <- prpg.trust.Mtx[, c(1,2)]}
+        amt.trust.Mtx[c((nrow(amt.trust.Mtx)+1):(nrow(amt.trust.Mtx)+nrow(prpg.trust.Mtx))),] <- prpg.trust.Mtx[, c(1,2)]
         if(length(unique(amt.trust.Mtx[[1]]))<nrow(amt.trust.Mtx)) {browser()}
         return (amt.trust.Mtx[, c('Dest', 'Trust.dest')])
       }
     }
   }
-  print('In calcTrust')
+  
+  
   #vertices
   n.vrt <- ntwk %n% "n"
-  ntwk.i <- ntwk2igraph.cvrt(ntwk)
+  ntwk.i <- utils$ntwk2igraph.cvrt(ntwk)
   
   #Indirect Trust between all members
   edges.Mtx <- stats::setNames(as.data.frame(network::as.edgelist(ntwk, attrname = c(ntwk.attr), as.sna.edgelist = TRUE)),
                                c('from', 'to', ntwk.attr)) %>% 
     dplyr::left_join(stats::setNames(as.data.frame(network::as.edgelist(ntwk, attrname = c(paste0(ntwk.attr, '.coef')), as.sna.edgelist = TRUE)),
                                      c('from', 'to', paste0(ntwk.attr, '.coef')))) %>% 
-    dplyr::left_join(igraph::as_long_data_frame(ntwk.i) %>% dplyr::select(from, to, from_deg, to_deg)) %>%
+    dplyr::left_join(igraph::as_long_data_frame(ntwk.i) %>% select(from, to, from_deg, to_deg)) %>%
     arrange(from, to)
   edges.Mtx <- base::as.matrix(edges.Mtx[complete.cases(edges.Mtx),])
   colnames(edges.Mtx)[colnames(edges.Mtx) == ntwk.attr] <- 'Trust'
@@ -152,8 +151,8 @@ calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'in',
   
   #Remove any cycles just in case
   edges2delete <- mapply(function(x) { ifelse(is.data.frame(ntwk$val[[x]]$Portfolio),
-                                      setdiff(ntwk$val[[x]]$Portfolio$to,get.neighborhood(ntwk,x,'in')),
-                                      NA)},x=c(1:n.vrt))
+                                              setdiff(ntwk$val[[x]]$Portfolio$to,get.neighborhood(ntwk,x,'in')),
+                                              NA)},x=c(1:n.vrt))
   
   #check if directed acyclic graph and remove corresponding edges
   x.dag <- predictionet::adj.remove.cycles(network::as.matrix.network(ntwk,matrix.type='adjacency'),
@@ -180,24 +179,26 @@ calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'in',
     on.exit(parallel::stopCluster(clst))
     #data storage object
     V <- big.matrix(n.vrt,n.vrt)
-    desc <- bigmemory::describe(V)
+    desc <- describe(V)
     #parallel for loop
     result = foreach(i = nodes, .packages="dplyr")%dopar%
-    {
-      V <- bigmemory::attach.big.matrix(desc)
-      z <- traverse.CalcTrust(ntwk, i, edges.Mtx, direction = direction, converge = converge)
-      z <- z[complete.cases(z),]
-      if(all(z[,1]>0)) {
-        V[i, z[[1]]] <- z[[2]] #store row-wise 
+      {
+        V <- bigmemory::attach.big.matrix(desc)
+        z <- traverse.CalcTrust(ntwk, i, edges.Mtx, direction = direction, converge = converge)
+        z <- z[complete.cases(z),]
+        if(all(z[,1]>0)) {
+          V[i, z[[1]]] <- z[[2]] #store row-wise 
+        }
       }
-    }
     risk.mtx <- as.matrix(V)
   } else {
     for(i in nodes) {
       z <- traverse.CalcTrust(ntwk, i, edges.Mtx, direction = direction, converge = converge)
       z <- z[complete.cases(z),]
       if(all(z[,1]>0)) {
-        risk.mtx[i, z[[1]]] <- z[[2]] #store row-wise 
+        tryCatch({
+          risk.mtx[i, z[[1]]] <- z[[2]] #store row-wise
+        },error=function(e){browser()})
       }
       print(paste('v', i))
     }
@@ -234,4 +235,3 @@ calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'in',
   }
   return (list('risk.array'=risk.array, 'ntwk'=ntwk))
 }
-

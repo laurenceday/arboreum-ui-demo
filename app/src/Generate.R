@@ -1,11 +1,12 @@
 import(dplyr)
+import(network)
 import(MCMCpack)
 import(extraDistr)
 import(predictionet)
 
-use(here::here("app/src/Kumaraswamy.R"), local=TRUE)
-use(here::here("app/src/PortfolioCorrelation.R"), local=TRUE)
-use(here::here("app/src/TrustToRisk.R"), local=TRUE)
+kumaraswamy <- modules::use(here::here("app/src/Kumaraswamy.R"))
+correlation <- modules::use(here::here("app/src/PortfolioCorrelation.R"))
+trustRisk <- modules::use(here::here("app/src/TrustToRisk.R"))
 
 #' Initialize Trust, Equity, amounted entrusted, rececived, and borrowed for network
 #'
@@ -56,9 +57,9 @@ initializeSheets <- function(ntwk, K, A0 = 1000, phi.a = 3, phi.b = 5, eps = 0.1
   H <- A*(1-eps)*(1+eps*phi)^-1
   E <- A-H #equity
   C <- D <- phi*H
-  network::set.vertex.attribute(ntwk, 'Assets', A)
-  network::set.vertex.attribute(ntwk, 'Equity', E[,1])
-  network::set.vertex.attribute(ntwk, 'PtflAtRisk', H[,1])
+  set.vertex.attribute(ntwk, 'Assets', A)
+  set.vertex.attribute(ntwk, 'Equity', E[,1])
+  set.vertex.attribute(ntwk, 'PtflAtRisk', H[,1])
   
   #Simulate distribution
   sim.kum.dist <- function(corr.mtx, df) {
@@ -88,29 +89,29 @@ initializeSheets <- function(ntwk, K, A0 = 1000, phi.a = 3, phi.b = 5, eps = 0.1
   }
   
   #Distribute Trust amongst outgoing vertices (changed to incoming edges)
-  network::set.edge.attribute(ntwk, 'Trust', NA)
-  network::set.edge.attribute(ntwk, 'Trust.coef', NA)
-  network::set.edge.attribute(ntwk, 'Utilized', NA)
-  network::set.edge.attribute(ntwk, 'Risk', NA)
-  network::set.edge.attribute(ntwk, 'Risk.coef', NA)
-  network::set.vertex.attribute(ntwk, 'Risk.aversion', NA)
-  network::set.vertex.attribute(ntwk, 'Portfolio', NA)
-  network::set.vertex.attribute(ntwk, 'Portfolio.corr', NA)
-  network::set.vertex.attribute(ntwk, 'Ptfl.kumPDF.a', NA)
-  network::set.vertex.attribute(ntwk, 'Ptfl.kumPDF.b', NA)
+  set.edge.attribute(ntwk, 'Trust', NA)
+  set.edge.attribute(ntwk, 'Trust.coef', NA)
+  set.edge.attribute(ntwk, 'Utilized', NA)
+  set.edge.attribute(ntwk, 'Risk', NA)
+  set.edge.attribute(ntwk, 'Risk.coef', NA)
+  set.vertex.attribute(ntwk, 'Risk.aversion', NA)
+  set.vertex.attribute(ntwk, 'Portfolio', NA)
+  set.vertex.attribute(ntwk, 'Portfolio.corr', NA)
+  set.vertex.attribute(ntwk, 'Ptfl.kumPDF.a', NA)
+  set.vertex.attribute(ntwk, 'Ptfl.kumPDF.b', NA)
   trustLnt <- rep(0, n.vrt)
   for(v in c(1:n.vrt)) {
     
     # outgoing edges & vertices
     edges.out <- get.edgeIDs(ntwk, v = v, neighborhood = 'in')
-    i.vrtc.out <- as.numeric(sapply(network::get.edges(ntwk, v = v, neighborhood = 'in'), function (x)  x$outl)) #incoming vertices
+    i.vrtc.out <- as.numeric(sapply(get.edges(ntwk, v = v, neighborhood = 'in'), function (x)  x$outl)) #incoming vertices
     
     h <- H[v] #trust
     
     #assign trust to edge if only one edge
     if(length(edges.out) == 1) {
-      network::set.edge.attribute(ntwk, 'Trust', h, edges.out[1])
-      network::set.edge.attribute(ntwk, 'Trust.coef', h, edges.out[1])
+      set.edge.attribute(ntwk, 'Trust', h, edges.out[1])
+      set.edge.attribute(ntwk, 'Trust.coef', h, edges.out[1])
       
     } else if(length(edges.out)>1) {
       
@@ -128,25 +129,25 @@ initializeSheets <- function(ntwk, K, A0 = 1000, phi.a = 3, phi.b = 5, eps = 0.1
       eta <- (eta/max(eta))*stats::rbeta(1, phi.b+phi.a, abs(phi.b-phi.a))
       
       #distribute accordingly and set values
-      network::set.edge.attribute(ntwk, 'Trust',   h*eta[1,], edges.out)
-      network::set.edge.attribute(ntwk, 'Trust.coef', eta[1,], edges.out)
+      set.edge.attribute(ntwk, 'Trust',   h*eta[1,], edges.out)
+      set.edge.attribute(ntwk, 'Trust.coef', eta[1,], edges.out)
     }
     
     #Calculate amount utilized
-    amt.trst.out <- network::get.edge.attribute(ntwk,"Trust")[edges.out]
+    amt.trst.out <- get.edge.attribute(ntwk,"Trust")[edges.out]
     phi.trst.out <- amt.trst.out*phi[i.vrtc.out]
     if(sum(phi.trst.out)>(1-phi[v])*h) { #.75 should not be hardcoded
       phi.trst.out <- phi.trst.out*(1-phi[v])*h/sum(phi.trst.out)
     }
-    network::set.edge.attribute(ntwk, 'Utilized', phi.trst.out, edges.out)
+    set.edge.attribute(ntwk, 'Utilized', phi.trst.out, edges.out)
     trustLnt[v] <- sum(phi.trst.out)
     
     #calculate correlation matrix
-    corr.mtx <- correlationUpdate(ntwk, v, direction = 'in')
+    corr.mtx <- correlation$correlationUpdate(ntwk, v, direction = 'in')
     ntwk[['val']][[v]]$Portfolio.corr <- corr.mtx
     
     #convert trust to risk (binomial probability)
-    rslt <- trust2Risk.solve(ntwk, v, A[v], E[v], direction = 'in')
+    rslt <- trustRisk$trust2Risk.solve(ntwk, v, A[v], E[v], direction = 'in')
     df <- rslt[[1]]
     L  <- rslt[[2]] #risk aversion coefficient
     if(is.na(L) ) {
@@ -154,10 +155,10 @@ initializeSheets <- function(ntwk, K, A0 = 1000, phi.a = 3, phi.b = 5, eps = 0.1
     }
     
     #set risk attributes
-    network::set.vertex.attribute(ntwk, 'Risk.aversion', L[1,1], v = v)
+    set.vertex.attribute(ntwk, 'Risk.aversion', L[1,1], v = v)
     if(!any(is.na(df)) & nrow(df)>= 1) {
-      network::set.edge.attribute(ntwk, 'Risk.coef', df$Risk.coef, df$Edge.To)
-      network::set.edge.attribute(ntwk, 'Risk',   h*df$Risk.coef, df$Edge.To)
+      set.edge.attribute(ntwk, 'Risk.coef', df$Risk.coef, df$Edge.To)
+      set.edge.attribute(ntwk, 'Risk',   h*df$Risk.coef, df$Edge.To)
       
       #calculate portfolio and set attributes
       df <- as.data.frame(list('to' = i.vrtc.out,
@@ -171,7 +172,7 @@ initializeSheets <- function(ntwk, K, A0 = 1000, phi.a = 3, phi.b = 5, eps = 0.1
       #set interest rates on amounts borrowed - define utility function to optimize
       
       ##solve optimization
-      soln <- optim.Kumar(corr.mtx, df$Risk.coef, W.in = df$lent, penalty.RZ = 10, Rlim = 2.5,
+      soln <- kumaraswamy$optim.Kumar(corr.mtx, df$Risk.coef, W.in = df$lent, penalty.RZ = 10, Rlim = 2.5,
                                       algorithm = 'NLOPT_LN_COBYLA',
                                       controls = list(xtol_rel = 0.1,  xtol_abs = c(rep(0.001, length(df$lent)),0.01,0.01)))
       ntwk[['val']][[v]]$Portfolio$rate <- soln$R
@@ -182,8 +183,8 @@ initializeSheets <- function(ntwk, K, A0 = 1000, phi.a = 3, phi.b = 5, eps = 0.1
   }
   
   #Create Assets/Liabilities Dataframes from Portfolios
-  network::set.vertex.attribute(ntwk, 'Assets', NA)
-  network::set.vertex.attribute(ntwk, 'Liabilities', NA)
+  set.vertex.attribute(ntwk, 'Assets', NA)
+  set.vertex.attribute(ntwk, 'Liabilities', NA)
   for(v in c(1:n.vrt)) {
     if(is.na(ntwk[['val']][[v]]$Assets)){
       ntwk[['val']][[v]]$Assets <- data.frame(borrower = numeric(),
@@ -198,18 +199,18 @@ initializeSheets <- function(ntwk, K, A0 = 1000, phi.a = 3, phi.b = 5, eps = 0.1
     
     if(is.na(ntwk[['val']][[v]]$Liabilities)){
       ntwk[['val']][[v]]$Liabilities <- data.frame(borrower = numeric(),
-                                                    via = numeric(),
-                                                    lender = numeric(),
-                                                    amount = numeric(),
-                                                    rate = numeric(),
-                                                    security = numeric(),
-                                                    type=character())
+                                                   via = numeric(),
+                                                   lender = numeric(),
+                                                   amount = numeric(),
+                                                   rate = numeric(),
+                                                   security = numeric(),
+                                                   type=character())
     }
     
     if(!all(is.na(ntwk[['val']][[v]]$Portfolio))){
       ntwk[['val']][[v]]$Assets[c(1:nrow(ntwk[['val']][[v]]$Portfolio)),
                                 c('borrower','via.trust','risk.coef','amount','rate','security')] <- 
-              ntwk[['val']][[v]]$Portfolio[,c('to','tot.trust','Risk.coef','lent','rate','security')]
+        ntwk[['val']][[v]]$Portfolio[,c('to','tot.trust','Risk.coef','lent','rate','security')]
       ntwk[['val']][[v]]$Assets$via <- ntwk[['val']][[v]]$Assets$borrower #v
       ntwk[['val']][[v]]$Assets$type <- 'Bond'
     }
@@ -231,14 +232,13 @@ initializeSheets <- function(ntwk, K, A0 = 1000, phi.a = 3, phi.b = 5, eps = 0.1
     }
     ntwk[['val']][[v]]$Liabilities$type <- as.character(ntwk[['val']][[v]]$Liabilities$type)
   }
-              
-                                    
+  
   trustLnt[is.na(trustLnt)] <- 0
   
   #Sum entrusted amounts to find total amount entrusted
   trustRcv <- rep(0, n.vrt)
   for(v in c(1:n.vrt)) {
-    trustRcv[v] <- sum(network::get.edge.attribute(ntwk,"Trust")[get.edgeIDs(ntwk, v = v, neighborhood = 'out')])
+    trustRcv[v] <- sum(get.edge.attribute(ntwk,"Trust")[get.edgeIDs(ntwk, v = v, neighborhood = 'out')])
   }
   
   trustRcv[is.na(trustRcv)] <- 0
@@ -250,6 +250,7 @@ initializeSheets <- function(ntwk, K, A0 = 1000, phi.a = 3, phi.b = 5, eps = 0.1
   return (list(Balance.Sheets, ntwk))
   
 }
+
 
 #' Create Core-Periphery network where edges generated via preferential attachment
 #'
@@ -268,8 +269,8 @@ initializeSheets <- function(ntwk, K, A0 = 1000, phi.a = 3, phi.b = 5, eps = 0.1
 #'
 #' @examples
 buildCorePeri <-  function(N = 50, K = 5,
-                                       a.peri = 1, a.core = 1, a.coreperi = 1,
-                                       b.peri = 0, b.core = 0 ) {
+                           a.peri = 1, a.core = 1, a.coreperi = 1,
+                           b.peri = 0, b.core = 0 ) {
   
   # Merge Base and Core
   merge.barabasi <- function(net.core, net.base, alpha) {
@@ -303,7 +304,7 @@ buildCorePeri <-  function(N = 50, K = 5,
     net.all <- igraph::add.edges(net.all, c(t(as.matrix(edges.base2core[, c(1,2)]))))
     
     #Remove cycles
-    ntwk <- predictionet::adj.remove.cycles(igraph::as_adjacency_matrix(net.all, sparse = FALSE), maxlength = 10) #round(igraph::gorder(net.all)/2),2
+    ntwk <- predictionet::adj.remove.cycles(igraph::as_adjacency_matrix(net.all, sparse = FALSE), maxlength = 10) #round(igraph::gorder(net.all)/2)
     return (as.network(ntwk$adjmat.acyclic, directed = TRUE))
   }
   

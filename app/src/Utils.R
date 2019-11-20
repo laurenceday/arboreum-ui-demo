@@ -1,4 +1,5 @@
 import(intergraph)
+import(dplyr)
 
 #convert network class graph to igraph class graph
 ntwk2igraph.cvrt <- function(ntwk) {
@@ -14,7 +15,7 @@ ntwk2igraph.cvrt <- function(ntwk) {
   vrt.prop.diff <- lapply(vrt.prop, function(x) setdiff(vrt.prop,v.Props))
   edg.prop.diff <- lapply(vrt.prop, function(x) setdiff(vrt.prop,v.Props))
   rm(vrt.prop,edg.prop,v.Props,e.Props)
-  #find which vertices/edges have missing properties, loop through and append NA
+  
   for(v in which(sapply(vrt.prop.diff,length)>0)){
     for(prop in vrt.prop.diff[[v]]){
       ntwk$val[[v]][[prop]] <- NA
@@ -26,6 +27,18 @@ ntwk2igraph.cvrt <- function(ntwk) {
     }
   }
   
-  ntwk.i <- intergraph::asIgraph(ntwk, amap = rbind(rbind(intergraph::attrmap(), data.frame(type ="vertex", fromcls ="network", fromattr ="Portfolio", tocls ="igraph", toattr = NA, stringsAsFactors = FALSE)), data.frame(type ="vertex", fromcls ="network", fromattr ="Portfolio.corr", tocls ="igraph", toattr = NA, stringsAsFactors = FALSE)))
+  ntwk.i <- intergraph::asIgraph(ntwk, amap = rbind(rbind(intergraph::attrmap(), 
+                                                          data.frame(type ="vertex", 
+                                                                     fromcls ="network", 
+                                                                     fromattr ="Portfolio", 
+                                                                     tocls ="igraph", 
+                                                                     toattr = NA, 
+                                                                     stringsAsFactors = FALSE)), 
+                                                    data.frame(type ="vertex", 
+                                                               fromcls ="network", 
+                                                               fromattr ="Portfolio.corr", 
+                                                               tocls ="igraph", 
+                                                               toattr = NA, 
+                                                               stringsAsFactors = FALSE)))
   return (ntwk.i)
 }
