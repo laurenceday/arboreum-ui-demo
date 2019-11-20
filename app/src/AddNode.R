@@ -1,13 +1,13 @@
-library(dplyr)
-library(predictionet)
-library(MCMCpack)
-library(network)
-library(stats)
+import(dplyr)
+import(predictionet)
+import(MCMCpack)
+import(network)
+import(stats)
 
-correlation <- modules::use(here::here("PortfolioCorrelation.R"))
-trustRisk <- modules::use(here::here("TrustToRisk.R"))
-traverse <- modules::use(here::here("Traverse.R"))
-utils    <- modules::use(here::here("Utils.R"))
+correlation <- modules::use(here::here("app/src/PortfolioCorrelation.R"))
+trustRisk <- modules::use(here::here("app/src/TrustToRisk.R"))
+traverse <- modules::use(here::here("app/src/Traverse.R"))
+utils    <- modules::use(here::here("app/src/Utils.R"))
 
 #Add node
 addNode2Ntwk <- function(ntwk,risk.array,assets,out.DF,in.DF=NULL,direction='in'){

@@ -1,12 +1,12 @@
-library(stats)
-library(dplyr)
-library(doParallel)
-library(bigmemory)
-library(foreach)
+import(stats)
+import(dplyr)
+import(doParallel)
+import(bigmemory)
+import(foreach)
 
-source(here::here("app/src/Utils.R"))
-source(here::here("app/src/Kumaraswamy.R"))
-source(here::here("app/src/PortfolioCorrelation.R"))
+use(here::here("app/src/Utils.R"))
+use(here::here("app/src/Kumaraswamy.R"))
+use(here::here("app/src/PortfolioCorrelation.R"))
 
 #' Solves individual (node-specific) consumption function for a hypothetical loan originated by a borrower somewhere in the network
 #' by solving portfolio optimization over a mesh of Interest Rates and Securitization ratios

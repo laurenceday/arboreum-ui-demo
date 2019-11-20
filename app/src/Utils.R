@@ -1,4 +1,4 @@
-library(intergraph)
+import(intergraph)
 
 #convert network class graph to igraph class graph
 ntwk2igraph.cvrt <- function(ntwk) {

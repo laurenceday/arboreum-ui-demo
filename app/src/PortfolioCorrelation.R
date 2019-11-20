@@ -1,6 +1,6 @@
-library(Matrix)
+import(Matrix)
 
-source(here::here("app/src/Utils.R"), local=TRUE)
+use(here::here("app/src/Utils.R"), local=TRUE)
 
 #' Computes/Updates correlation matrix of the portfolio of assets (loans made to others) for vertex in network
 #'

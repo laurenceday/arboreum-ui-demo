@@ -1,11 +1,11 @@
-library(dplyr)
-library(MCMCpack)
-library(extraDistr)
-library(predictionet)
+import(dplyr)
+import(MCMCpack)
+import(extraDistr)
+import(predictionet)
 
-source(here::here("app/src/Kumaraswamy.R"), local=TRUE)
-source(here::here("app/src/PortfolioCorrelation.R"), local=TRUE)
-source(here::here("app/src/TrustToRisk.R"), local=TRUE)
+use(here::here("app/src/Kumaraswamy.R"), local=TRUE)
+use(here::here("app/src/PortfolioCorrelation.R"), local=TRUE)
+use(here::here("app/src/TrustToRisk.R"), local=TRUE)
 
 #' Initialize Trust, Equity, amounted entrusted, rececived, and borrowed for network
 #'

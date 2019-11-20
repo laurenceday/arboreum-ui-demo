@@ -1,13 +1,13 @@
-library(network)
-library(dplyr)
-library(stats)
-library(Hmisc)
-library(doParallel)
-library(bigmemory)
-library(foreach)
-library(predictionet)
+import(network)
+import(dplyr)
+import(stats)
+import(Hmisc)
+import(doParallel)
+import(bigmemory)
+import(foreach)
+import(predictionet)
 
-source(here::here("app/src/Utils.R"), local=TRUE)
+use(here::here("app/src/Utils.R"), local=TRUE)
 
 #' Traverse network and calculate how trust cascades 
 #' see Sun, Zhu, Han (2006) Information Theoretic Framework for Trust Modeling for equations to update trust
@@ -182,7 +182,7 @@ calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'in',
     V <- big.matrix(n.vrt,n.vrt)
     desc <- bigmemory::describe(V)
     #parallel for loop
-    result = foreach(i = nodes)%dopar%
+    result = foreach(i = nodes, .packages="dplyr")%dopar%
     {
       V <- bigmemory::attach.big.matrix(desc)
       z <- traverse.CalcTrust(ntwk, i, edges.Mtx, direction = direction, converge = converge)

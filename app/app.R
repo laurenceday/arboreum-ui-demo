@@ -5,10 +5,11 @@
 ### libraries
 library(shiny)
 library(stringr)
-library(dplyr)
 library(lubridate)
 library(bcrypt)        # 2 commands, hashpw("password") and checkpw("password", hash)
 library(aws.signature)
+
+TF.tidy = require(tidyverse)
 
 ### initializations
 
@@ -33,6 +34,7 @@ send.email <- function(to.name, to.adr, subject, message,
            to = paste0(to.name, " <", to.adr, ">"),
            replyTo = paste0(replyto.name, " <", replyto.adr, ">"))
 }
+
 
 # The following code is from the aws.ses package, modified by TomW Nov 2018
 

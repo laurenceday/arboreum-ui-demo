@@ -1,7 +1,7 @@
 
-library(stats)
+import(stats)
 
-source(here::here("app/src/PortfolioCorrelation.R"), local=TRUE)
+use(here::here("app/src/PortfolioCorrelation.R"), local=TRUE)
 
 #' Computes a binomial probability for "Trust" of a node given the below information
 #'
