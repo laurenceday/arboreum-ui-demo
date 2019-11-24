@@ -1,12 +1,12 @@
 import(dplyr)
-import(network)
 import(MCMCpack)
 import(extraDistr)
 import(predictionet)
+import(network)
 
 kumaraswamy <- modules::use(here::here("app/src/Kumaraswamy.R"))
 correlation <- modules::use(here::here("app/src/PortfolioCorrelation.R"))
-trustRisk <- modules::use(here::here("app/src/TrustToRisk.R"))
+trustRisk   <- modules::use(here::here("app/src/TrustToRisk.R"))
 
 #' Initialize Trust, Equity, amounted entrusted, rececived, and borrowed for network
 #'
@@ -136,7 +136,8 @@ initializeSheets <- function(ntwk, K, A0 = 1000, phi.a = 3, phi.b = 5, eps = 0.1
     #Calculate amount utilized
     amt.trst.out <- get.edge.attribute(ntwk,"Trust")[edges.out]
     phi.trst.out <- amt.trst.out*phi[i.vrtc.out]
-    if(sum(phi.trst.out)>(1-phi[v])*h) { #.75 should not be hardcoded
+    print(sum(phi.trst.out) > (1-phi[v])*h)
+    if (sum(phi.trst.out) > (1-phi[v])*h) { 
       phi.trst.out <- phi.trst.out*(1-phi[v])*h/sum(phi.trst.out)
     }
     set.edge.attribute(ntwk, 'Utilized', phi.trst.out, edges.out)
@@ -305,7 +306,7 @@ buildCorePeri <-  function(N = 50, K = 5,
     
     #Remove cycles
     ntwk <- predictionet::adj.remove.cycles(igraph::as_adjacency_matrix(net.all, sparse = FALSE), maxlength = 10) #round(igraph::gorder(net.all)/2)
-    return (as.network(ntwk$adjmat.acyclic, directed = TRUE))
+    return (network::as.network(ntwk$adjmat.acyclic, directed = TRUE))
   }
   
   # Generate Base
@@ -321,10 +322,6 @@ buildCorePeri <-  function(N = 50, K = 5,
   Degree.Distribution <- sna::degree(as.matrix(net.cp), gmode = "digraph")
   Centralization <- sna::centralization(as.matrix(net.cp), sna::degree)
   Connectivity <- sna::gden(as.matrix(net.cp))
-  
-  net.cp %v% "deg" <- Degree.Distribution
-  net.cp %n% "Centralization" <- Centralization
-  net.cp %n% "Connectivity" <- Connectivity
   
   return (net.cp)
 }

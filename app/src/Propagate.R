@@ -1,8 +1,8 @@
-import(stats)
-import(dplyr)
-import(doParallel)
-import(bigmemory)
-import(foreach)
+require(stats)
+require(dplyr)
+require(doParallel)
+require(bigmemory)
+require(foreach)
 
 utils    <- modules::use(here::here("app/src/Utils.R"))
 

@@ -1,6 +1,13 @@
-### om_skeleton profile.R
-### Tom Weishaar - Oct 2017 - v0.1
-### Skeleton for multi-page, multi-user web site in Shiny, with user authentication
+
+require(MASS)
+require(igraph)
+require(network)
+require(sna)
+
+require(modules)
+require(here)
+
+generate <- modules::use(here::here("app/src/Generate.R"))
 
 session$userData$fixingemail <- FALSE     # flag to separate fixing email from new regisitation
 
@@ -118,7 +125,7 @@ output$pageStub <- renderUI({rv$limn; isolate({
                                                HTML("<h3>Pranav</h3>"),
                                                HTML("PROFILE<p>"),
                                                numericInput("pranavTrust", "Credit To Extend To Pranav:", value = 0, min = 0, max = 10000, width = "100%"))))),
-            fluidRow(column(6, offset = 1, imageOutput("depositInLimits"), actionButton("stage2", label="Proceed")))
+            fluidRow(column(6, offset = 1, imageOutput("depositInLimits"), actionButton("stage2", label="Proceed"), actionButton("stage2_precooked", label="Use Precalc")))
           )
       }
     }
@@ -196,6 +203,26 @@ observeEvent(input$amountDeposit, {
 })
 
 observeEvent(input$stage2, {
-  if (session$userData$inLimits) {js$redirect("?demo_2")} else { showNotification("You are extending more credit to someone than you have deposited. Please adjust your numbers appropriately.", type="error") }
+  if (session$userData$inLimits)
+      {
+        initialisedNetwork <- generate$buildCorePeri(N = 100, K = 10)
+        initialisedSheets  <- suppressWarnings(generate$initializeSheets(initialisedNetwork, K = 10, A0 = 10000))
+        
+        baseNetwork        <- initialisedSheets[[2]]
+        riskArray          <- suppressWarnings(calcRiskArray(baseNetwork))
+        
+        risk.array <- riskArray[[1]]
+        ntwk       <- riskArray[[2]]
+        #### Add Node ####
+        rslt <- addNode$addNode2Ntwk(ntwk,risk.array,750,
+                                     out.DF=data.frame(list(nodes=c(1,2,3,4), #this dataframe would be input by UI
+                                                            names=c('Mack','Gaurav','Laurence','Pranav'),
+                                                            trust=c(325,225,175,275))))
+        
+        saveRDS(rslt, here::here("app/tmp/userGeneratedNetwork.rds"))
+        
+        js$redirect("?demo_2")
+      }
+  else { showNotification("You are extending more credit to someone than you have deposited. Please adjust your numbers appropriately.", type="error") }
 })
 

@@ -12,6 +12,7 @@ source(here::here("app/src/Traverse.R"))
 
 session$userData$usingPrecooked <- FALSE
 
+# userGeneratedNetwork <- readRDS(here::here("app/tmp/userGeneratedNetwork.rds"))
 precookedNetwork <- readRDS(here::here("app/tmp/precookedNetwork.rds"))
 precookedSList   <- readRDS(here::here("app/tmp/precookedSList.rds"))
 load(here::here("app/src/DemoTable.rda")) # The pre-cooked back-propagated network, loads in z.loess
@@ -50,11 +51,6 @@ observeEvent(input$computeBackprop, {
   session$userData$maxInterestRate    <- input$maxInterestRate
   session$userData$maxCollateralRate  <- input$maxCollateralRate
   
-  session$userData$initialisedNetwork <- buildCorePeri(N = 100, K = 10)
-  session$userData$initialisedSheets  <- suppressWarnings(initializeSheets(session$userData$initialisedNetwork, K = 10, A0 = 10000))
-  
-  session$userData$baseNetwork        <- session$userData$initialisedSheets[[2]]
-  session$userData$riskArray          <- suppressWarnings(calcRiskArray(session$userData$baseNetwork))
   session$userData$propNetwork        <- session$userData$riskArray[[2]]
   
   session$userData$loanTable          <- loan.backProp(session$userData$propNetwork, 1, algorithm ="NLOPT_GN_ISRES", browse = FALSE,

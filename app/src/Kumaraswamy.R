@@ -1,6 +1,6 @@
-import(stats)
-import(nleqslv)
-import(nloptr)
+require(stats)
+require(nleqslv)
+require(nloptr)
 
 #method of moments solver for kumaraswamy distribution
 kumar.MoM <- function(mu, vr) {

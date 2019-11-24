@@ -1,4 +1,4 @@
-import(stats)
+require(stats)
 
 portfolio <- modules::use(here::here("app/src/PortfolioCorrelation.R"))
 

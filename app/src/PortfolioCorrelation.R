@@ -1,4 +1,4 @@
-import(Matrix)
+require(Matrix)
 
 utils     <- modules::use(here::here("app/src/Utils.R"))
 
