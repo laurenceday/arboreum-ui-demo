@@ -50,3 +50,5 @@ app/tmp/interestRate.rds
 app/tmp/loanAmount.rds
 app/tmp/securitisationRate.rds
 app/users-table.RDS
+packrat/lib*/
+packrat/src/

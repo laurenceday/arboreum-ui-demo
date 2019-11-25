@@ -214,12 +214,13 @@ observeEvent(input$stage2, {
         risk.array <- riskArray[[1]]
         ntwk       <- riskArray[[2]]
         #### Add Node ####
-        rslt <- addNode$addNode2Ntwk(ntwk,risk.array,750,
-                                     out.DF=data.frame(list(nodes=c(1,2,3,4), #this dataframe would be input by UI
-                                                            names=c('Mack','Gaurav','Laurence','Pranav'),
-                                                            trust=c(325,225,175,275))))
+        #TODO: we need to clarify what 'nodes' is meant to be from a UI perspective
+        #rslt <- addNode$addNode2Ntwk(ntwk,risk.array,750,
+        #                             out.DF=data.frame(list(nodes=c(1,2,3,4), #this dataframe would be input by UI
+        #                                                    names=c('Mack','Gaurav','Laurence','Pranav'),
+        #                                                    trust=c(325,225,175,275))))
         
-        saveRDS(rslt, here::here("app/tmp/userGeneratedNetwork.rds"))
+        #saveRDS(rslt, here::here("app/tmp/userGeneratedNetwork.rds"))
         
         js$redirect("?demo_2")
       }
