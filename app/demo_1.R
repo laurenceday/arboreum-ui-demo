@@ -7,8 +7,6 @@ require(sna)
 require(modules)
 require(here)
 
-generate <- modules::use(here::here("app/src/Generate.R"))
-
 session$userData$fixingemail <- FALSE     # flag to separate fixing email from new regisitation
 
 output$mackImage <- renderImage({ return(list(
@@ -41,14 +39,6 @@ output$pranavImage <- renderImage({ return(list(
   height = 100,
   contentType = "image/jpg",
   alt = "Pranav"
-))}, deleteFile = FALSE)
-
-output$depositInLimits <- renderImage({ return(list(
-  src = if ((session$userData$mackTrust + session$userData$gauravTrust + session$userData$laurenceTrust + session$userData$pranavTrust) <= session$userData$amountDeposit) {"images/tick.JPG"} else {"images/cross.JPG"},
-  width = 50,
-  height = 50,
-  contentType = "image/jpg",
-  alt = "Are Initial Parameters Acceptable?"
 ))}, deleteFile = FALSE)
 
 output$pageStub <- renderUI({rv$limn; isolate({
@@ -94,39 +84,39 @@ output$pageStub <- renderUI({rv$limn; isolate({
       if(session$userData$user$sp) {
         session$userData$fixingemail <- TRUE
         pageText <- tagList(
-            fluidRow(
-              column(8, offset=1,
-                     HTML("<h3 style='margin-bottom: 1em;'>Welcome to Arboreum!</h4>"),
-                     HTML("Backstory - Hi there! Welcome to our demo.<p> In this first step you will be joining the Arboreum network.<p>
+          fluidRow(
+            column(8, offset=1,
+                   HTML("<h3 style='margin-bottom: 1em;'>Welcome to Arboreum!</h4>"),
+                   HTML("Backstory - Hi there! Welcome to our demo.<p> In this first step you will be joining the Arboreum network.<p>
                           To start, you must decide how much money you would like to put in.<br>
                           Next you will decide what is the maximum amount of an unsecured loan you are willing to give to four hypothetical friends/business colleagues.<br><br>
                           NOTE: you can extend your given trust amount to <i>each</i> of the people below, should you choose: your credit is only utilised if someone explicitly requests it.")
-                    )
-            ),
-            fluidRow( column(4, offset=1, numericInput("amountDeposit", "Amount To Deposit (Between 100-10,000):", value=100, min=100, max=10000, width= "30%") ) ),
-            
-            column(6, offset = 1, wellPanel(fluidRow(column(1, offset=0, imageOutput("mackImage",     height=120)),
-                                        column(5, offset=2,
-                                               HTML("<h3>Mack</h3>"),
-                                               HTML("PROFILE<p>"),
-                                               numericInput("mackTrust", "Credit To Extend To Mack:", value = 0, min = 0, max = 10000, width = "100%"))))),
-            column(6, offset = 1, wellPanel(fluidRow(column(1, offset=0, imageOutput("gauravImage",   height=120)),
-                                        column(5, offset=2,
-                                               HTML("<h3>Gaurav</h3>"),
-                                               HTML("PROFILE<p>"),
-                                               numericInput("gauravTrust", "Credit To Extend To Gaurav:", value = 0, min = 0, max = 10000, width = "100%"))))),
-            column(6, offset = 1, wellPanel(fluidRow(column(1, offset=0, imageOutput("laurenceImage", height=120)),
-                                        column(5, offset=2,
-                                               HTML("<h3>Laurence</h3>"),
-                                               HTML("PROFILE<p>"),
-                                               numericInput("laurenceTrust", "Credit To Extend To Laurence:", value = 0, min = 0, max = 10000, width = "100%"))))),
-            column(6, offset = 1, wellPanel(fluidRow(column(1, offset=0, imageOutput("pranavImage",   height=120)),
-                                        column(5, offset=2,
-                                               HTML("<h3>Pranav</h3>"),
-                                               HTML("PROFILE<p>"),
-                                               numericInput("pranavTrust", "Credit To Extend To Pranav:", value = 0, min = 0, max = 10000, width = "100%"))))),
-            fluidRow(column(6, offset = 1, imageOutput("depositInLimits"), actionButton("stage2", label="Proceed"), actionButton("stage2_precooked", label="Use Precalc")))
-          )
+            )
+          ),
+          fluidRow( column(4, offset=1, numericInput("amountDeposit", "Amount To Deposit:", value=750, width= "30%") ) ),
+          
+          column(6, offset = 1, wellPanel(fluidRow(column(1, offset=0, imageOutput("mackImage",     height=120)),
+                                                   column(5, offset=2,
+                                                          HTML("<h3>Mack</h3>"),
+                                                          HTML("PROFILE<p>"),
+                                                          numericInput("mackTrust", "Credit To Extend To Mack:", value = 325, width = "100%"))))),
+          column(6, offset = 1, wellPanel(fluidRow(column(1, offset=0, imageOutput("gauravImage",   height=120)),
+                                                   column(5, offset=2,
+                                                          HTML("<h3>Gaurav</h3>"),
+                                                          HTML("PROFILE<p>"),
+                                                          numericInput("gauravTrust", "Credit To Extend To Gaurav:", value = 225, width = "100%"))))),
+          column(6, offset = 1, wellPanel(fluidRow(column(1, offset=0, imageOutput("laurenceImage", height=120)),
+                                                   column(5, offset=2,
+                                                          HTML("<h3>Laurence</h3>"),
+                                                          HTML("PROFILE<p>"),
+                                                          numericInput("laurenceTrust", "Credit To Extend To Laurence:", value = 175, width = "100%"))))),
+          column(6, offset = 1, wellPanel(fluidRow(column(1, offset=0, imageOutput("pranavImage",   height=120)),
+                                                   column(5, offset=2,
+                                                          HTML("<h3>Pranav</h3>"),
+                                                          HTML("PROFILE<p>"),
+                                                          numericInput("pranavTrust", "Credit To Extend To Pranav:", value = 275, width = "100%"))))),
+          fluidRow(column(6, offset = 1, actionButton("stage2", label="Proceed")))
+        )
       }
     }
   }
@@ -139,91 +129,7 @@ output$pageStub <- renderUI({rv$limn; isolate({
 #    Other pages here embed the returns in the code rather than using a
 #    variable that is returned at the end of the code. Either way is ok.
 
-observeEvent(input$mackTrust, {
-  session$userData$mackTrust <- if (is.numeric(input$mackTrust)) {input$mackTrust} else {0}
-  session$userData$inLimits <- session$userData$mackTrust <= session$userData$amountDeposit
-  if (session$userData$inLimits) {print("Enabling"); shinyjs::enable("stage2")} else {print("Disabled"); shinyjs::disable("stage2")}
-  print(paste0(session$userData$inLimits))
-  output$depositInLimits <- renderImage({ return(list(
-    src = if (session$userData$inLimits) {"images/tick.JPG"} else {"images/cross.JPG"},
-    width = 100,
-    height = 100,
-    contentType = "image/jpg",
-    alt = "Are Initial Parameters Acceptable?"
-  ))}, deleteFile = FALSE)
-})
-
-observeEvent(input$gauravTrust, {
-  session$userData$gauravTrust <- if (is.numeric(input$gauravTrust)) {input$gauravTrust} else {0}
-  session$userData$inLimits <- session$userData$gauravTrust <= session$userData$amountDeposit
-  output$depositInLimits <- renderImage({ return(list(
-    src = if (session$userData$inLimits) {"images/tick.JPG"} else {"images/cross.JPG"},
-    width = 100,
-    height = 100,
-    contentType = "image/jpg",
-    alt = "Are Initial Parameters Acceptable?"
-  ))}, deleteFile = FALSE)
-})
-
-observeEvent(input$laurenceTrust, {
-  session$userData$laurenceTrust <- if (is.numeric(input$laurenceTrust)) {input$laurenceTrust} else {0}
-  session$userData$inLimits <- session$userData$laurenceTrust <= session$userData$amountDeposit
-  output$depositInLimits <- renderImage({ return(list(
-    src = if (session$userData$inLimits) {"images/tick.JPG"} else {"images/cross.JPG"},
-    width = 100,
-    height = 100,
-    contentType = "image/jpg",
-    alt = "Are Initial Parameters Acceptable?"
-  ))}, deleteFile = FALSE)
-})
-
-observeEvent(input$pranavTrust, {
-  session$userData$pranavTrust <- if (is.numeric(input$pranavTrust)) {input$pranavTrust} else {0}
-  session$userData$inLimits <- session$userData$pranavTrust <= session$userData$amountDeposit
-  output$depositInLimits <- renderImage({ return(list(
-    src = if (session$userData$inLimits) {"images/tick.JPG"} else {"images/cross.JPG"},
-    width = 100,
-    height = 100,
-    contentType = "image/jpg",
-    alt = "Are Initial Parameters Acceptable?"
-  ))}, deleteFile = FALSE)
-})
-
-
-observeEvent(input$amountDeposit, {
-  session$userData$amountDeposit <- if (is.numeric(input$amountDeposit)) {input$amountDeposit} else {0}
-  session$userData$inLimits <- (session$userData$mackTrust + session$userData$gauravTrust + session$userData$laurenceTrust + session$userData$pranavTrust) <= session$userData$amountDeposit
-  output$depositInLimits <- renderImage({ return(list(
-    src = if (session$userData$inLimits) {"images/tick.JPG"} else {"images/cross.JPG"},
-    width = 100,
-    height = 100,
-    contentType = "image/jpg",
-    alt = "Are Initial Parameters Acceptable?"
-  ))}, deleteFile = FALSE)
-})
-
 observeEvent(input$stage2, {
-  if (session$userData$inLimits)
-      {
-        initialisedNetwork <- generate$buildCorePeri(N = 100, K = 10)
-        initialisedSheets  <- suppressWarnings(generate$initializeSheets(initialisedNetwork, K = 10, A0 = 10000))
-        
-        baseNetwork        <- initialisedSheets[[2]]
-        riskArray          <- suppressWarnings(calcRiskArray(baseNetwork))
-        
-        risk.array <- riskArray[[1]]
-        ntwk       <- riskArray[[2]]
-        #### Add Node ####
-        #TODO: we need to clarify what 'nodes' is meant to be from a UI perspective
-        #rslt <- addNode$addNode2Ntwk(ntwk,risk.array,750,
-        #                             out.DF=data.frame(list(nodes=c(1,2,3,4), #this dataframe would be input by UI
-        #                                                    names=c('Mack','Gaurav','Laurence','Pranav'),
-        #                                                    trust=c(325,225,175,275))))
-        
-        #saveRDS(rslt, here::here("app/tmp/userGeneratedNetwork.rds"))
-        
-        js$redirect("?demo_2")
-      }
-  else { showNotification("You are extending more credit to someone than you have deposited. Please adjust your numbers appropriately.", type="error") }
+  js$redirect("?demo_2")
 })
 

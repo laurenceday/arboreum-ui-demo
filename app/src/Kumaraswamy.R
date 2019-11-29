@@ -4,28 +4,28 @@ import(nloptr)
 
 #method of moments solver for kumaraswamy distribution
 kumar.MoM <- function(mu, vr) {
-
+  
   #moment generation function
   mn <- function(a, b, n) {
     log.num <- log(b) + lgamma(1 + n/a) + lgamma(b)
     log.den <- lgamma(1 + b + n/a)
     return (exp(log.num-log.den))
   }
-
+  
   #method of moments function
   fn.MoM <- function(par) {
     mom1 <- mn(exp(par[1]), exp(par[2]),1) - mu
     mom2 <- mn(exp(par[1]), exp(par[2]),2) - mn(exp(par[1]), exp(par[2]),1)^2 - vr
     return (c(mom1, mom2))
   }
-
+  
   est <- as.vector(exp(nleqslv(c(0.01,0.01), fn.MoM)$x))
   return (est)
 }
 
 
-#' Optimization Routine - optimize for unknown values of W, R, Z respectively denoting
-#' (1) amount of trust-channel "consumed" for loan
+#' Optimization Routine - optimize for unknown values of W, R, Z respectively denoting 
+#' (1) amount of trust-channel "consumed" for loan 
 #' (2) desired return on loan (expected return = W*((R-Z)*P.in+Z)
 #' (3) securitization rate on loan
 #' Routine cannot solve for all 3 parameters simultaneusly! at least 1/3 variables must be provided
@@ -45,7 +45,7 @@ kumar.MoM <- function(mu, vr) {
 #' @param algorithm - non-linear optimization algorithm (see documentation for NLopt)
 #' @param controls  - control  parameters such as max-eval for algorithm used for non-linear optimization
 #' @param S.FN  - list of loess functions that output amount demanded downstream given rate (R) and securitization (Z)
-#' @param relax  - relaxes constraint
+#' @param relax  - relaxes constraint 
 #' @param browse - TRUE/FALSE invoke browser
 #' @return
 #' @export
@@ -56,7 +56,7 @@ optim.Kumar <- function(corr.mtx, P.in,
                         penalty.RZ = 0, elastic.RZ = 0.5,Clim=NA,
                         algorithm = "NLOPT_LN_COBYLA", controls = list(),
                         S.FN = c(), relax = FALSE, browse = FALSE) {
-
+  
   #Determine which missing values to optimize
   W.optim <- c()
   R.optim <- c()
@@ -72,12 +72,12 @@ optim.Kumar <- function(corr.mtx, P.in,
   C.TF <- FALSE
   n.S <- 0
   n.C <- 0
-
+  
   if(all(!is.na(Clim))){
     C.TF <- TRUE
     n.C <- length(Clim)
   }
-
+  
   #S.FN if present is a list of functions yielding supply curve (denoted by the last elements of argument vectors)
   if(length(S.FN)>0 & is.list(S.FN)) {
     S.TF <- TRUE
@@ -87,7 +87,7 @@ optim.Kumar <- function(corr.mtx, P.in,
   } else {
     S.optim <- integer(0)
   }
-
+  
   if(any(is.na(W.in))) {
     if(length(W.in) == 1) {
       W.optim <- c(1:nrow(corr.mtx))
@@ -97,7 +97,7 @@ optim.Kumar <- function(corr.mtx, P.in,
     }
     W.TF <- TRUE
   }
-
+  
   if(any(is.na(R.in))) {
     if(length(R.in) == 1) {
       R.optim <- c(1:nrow(corr.mtx))
@@ -107,7 +107,7 @@ optim.Kumar <- function(corr.mtx, P.in,
     }
     R.TF <- TRUE
   }
-
+  
   if(any(is.na(Z.in))) {
     if(length(Z.in) == 1) {
       Z.optim <- c(1:nrow(corr.mtx))
@@ -117,11 +117,11 @@ optim.Kumar <- function(corr.mtx, P.in,
     }
     Z.TF <- TRUE
   }
-
+  
   if(relax) {
     K.TF <- FALSE
   }
-
+  
   #create starting values, upper bound, lower bound, and solve for respective indices
   n.opt <- length(W.optim)+length(R.optim)+length(Z.optim)+2*K.TF
   X0.opt <- rep(NA, n.opt)
@@ -129,7 +129,7 @@ optim.Kumar <- function(corr.mtx, P.in,
   UB.opt <- rep(NA, n.opt)
   if(W.TF) {
     W.indx <- c(1:length(W.optim))
-    LB.opt[W.indx] <- 0.01
+    LB.opt[W.indx] <- round(0.01+S.TF*Wlim*0.15,2)
     UB.opt[W.indx] <- Wlim
     X0.opt[W.indx] <- UB.opt[W.indx]/2*rnorm(length(W.indx),1)+runif(length(W.indx),-.5,.5)
     X0.opt[W.indx][X0.opt[W.indx]<LB.opt[W.indx]] <- LB.opt[W.indx]
@@ -165,7 +165,7 @@ optim.Kumar <- function(corr.mtx, P.in,
     X0.opt[RS.indx] <- LB.opt[RS.indx]+(UB.opt[RS.indx]-LB.opt[RS.indx])/2+runif(length(RS.indx),-0.05,0.05)
     X0.opt[RS.indx][X0.opt[RS.indx]<LB.opt[RS.indx]] <- LB.opt[RS.indx]
     X0.opt[RS.indx][X0.opt[RS.indx]>UB.opt[RS.indx]] <- UB.opt[RS.indx]
-
+    
     #for securitication
     ZS.indx <- Z.indx[Z.optim %in% S.optim]
     LB.opt[ZS.indx] <- Z.in[W.optim]-(1-0.001) #negative because securitization increases
@@ -174,7 +174,7 @@ optim.Kumar <- function(corr.mtx, P.in,
     X0.opt[ZS.indx][X0.opt[ZS.indx]<LB.opt[ZS.indx]] <- LB.opt[ZS.indx]
     X0.opt[ZS.indx][X0.opt[ZS.indx]>UB.opt[ZS.indx]] <- UB.opt[ZS.indx]
   }
-
+  
   #Parse P.in to create Standard Deviation vector
   if(is.matrix(P.in)) {
     Std <- sqrt(P.in[,1]*(1-P.in[,1]))
@@ -186,12 +186,12 @@ optim.Kumar <- function(corr.mtx, P.in,
   } else {
     Std <- sqrt(P.in*(1-P.in))
   }
-
+  
   #to reinitialize inputs (in case needed for random restarts)
   inpt.init <- function() {
-
+    
     X0.opt <- rep(NA, n.opt)
-
+    
     if(W.TF) {
       X0.opt[W.indx] <- UB.opt[W.indx]/2*rnorm(length(W.indx),1)+runif(length(W.indx),-.5,.5)
       X0.opt[W.indx][X0.opt[W.indx]<LB.opt[W.indx]] <- LB.opt[W.indx]
@@ -215,7 +215,7 @@ optim.Kumar <- function(corr.mtx, P.in,
       X0.opt[RS.indx] <- LB.opt[RS.indx]+(UB.opt[RS.indx]-LB.opt[RS.indx])/2+runif(length(RS.indx),-0.05,0.05)
       X0.opt[RS.indx][X0.opt[RS.indx]<LB.opt[RS.indx]] <- LB.opt[RS.indx]
       X0.opt[RS.indx][X0.opt[RS.indx]>UB.opt[RS.indx]] <- UB.opt[RS.indx]
-
+      
       #for securitication
       X0.opt[ZS.indx] <- LB.opt[ZS.indx]+(UB.opt[ZS.indx]+LB.opt[ZS.indx])/2+runif(length(ZS.indx),-0.05,0.05)
       X0.opt[ZS.indx][X0.opt[ZS.indx]<LB.opt[ZS.indx]] <- LB.opt[ZS.indx]
@@ -223,18 +223,18 @@ optim.Kumar <- function(corr.mtx, P.in,
     }
     return (X0.opt)
   }
-
+  
   #Parse S.FN to create necessary functions to return amount sold given R and Z
   if(S.TF) {
-
+    
     RZ.S.calc <- function(R, Z) {
       Rc <- R.in[W.optim]
       Zc <- Z.in[W.optim]
-
+      
       if(is.atomic(R)) {
         return (list(Rs = Rc-R, Zs = Zc-Z))
       }
-
+      
       m <- length(Rc)
       if(!is.matrix(R) & !is.matrix(Z)) {
         if(length(R) == m & length(Z) == m) {
@@ -246,10 +246,10 @@ optim.Kumar <- function(corr.mtx, P.in,
         }
       return (list(Rs = Rs, Zs = Zs))
     }
-
+    
     #interpolate supply at a given point
     S.intrp <- function(R, Z, inpt.adj = TRUE) {
-
+      
       #function to interpolate set
       S.intrp.set <- function(mdls, R, Z) {
         S <- rep(0, length(R))
@@ -258,7 +258,7 @@ optim.Kumar <- function(corr.mtx, P.in,
         }
         return (S)
       }
-
+      
       #If inpt.adj
       if(inpt.adj) {
         RZ <- RZ.S.calc(R, Z)
@@ -275,7 +275,7 @@ optim.Kumar <- function(corr.mtx, P.in,
         }
         return (S)
       }
-
+      
       if(!is.matrix(R) & !is.matrix(Z)) {
         if(length(R) == m & length(Z) == m) {
           R <- t(as.matrix(R))
@@ -285,24 +285,24 @@ optim.Kumar <- function(corr.mtx, P.in,
           Z <- matrix(rep(Z, m), ncol = m)
         }
       }
-
+      
       S <- matrix(nrow = nrow(R), ncol = m)
-
+      
       for(j in c(1:m)) {
         S[, j] <- S.intrp.set(S.FN[j], R[, j], Z[, j])
       }
       return (S)
     }
-
+    
     #Interpolate derivative w.r.t R
     S.dR.intrp <- function(R, Z, delta = 0.0005, inpt.adj = TRUE) {
       S.pre <- S.intrp(R-delta, Z, inpt.adj = inpt.adj)
       S.0   <- S.intrp(R, Z, inpt.adj = inpt.adj)
       S.pst <- S.intrp(R+delta, Z, inpt.adj = inpt.adj)
-
+      
       Sdiff.pre <- (S.0-S.pre)/delta
       Sdiff.pst <- (S.pst-S.0)/delta
-
+      
       return ((Sdiff.pre+Sdiff.pst)/2)
     }
     #interpolate derivative w.r.t Z
@@ -310,14 +310,14 @@ optim.Kumar <- function(corr.mtx, P.in,
       S.pre <- S.intrp(R, Z-delta, inpt.adj = inpt.adj)
       S.0   <- S.intrp(R, Z, inpt.adj = inpt.adj)
       S.pst <- S.intrp(R, Z+delta, inpt.adj = inpt.adj)
-
+      
       Sdiff.pre <- (S.0-S.pre)/delta
       Sdiff.pst <- (S.pst-S.0)/delta
-
+      
       return ((Sdiff.pre+Sdiff.pst)/2)
     }
   }
-
+  
   #Parse X.opt, update W.in, R.in, Z.in
   opt.update.WRZ <- function (X)  {
     if(W.TF) {
@@ -337,26 +337,26 @@ optim.Kumar <- function(corr.mtx, P.in,
       b.Kum <- X[K.indx[2]]
       return (list(W = W.in, R = R.in, Z = Z.in, a = a.Kum, b = b.Kum))
     } else {
-      return (list(W = W.in, R = R.in, Z = Z.in))
+      return (list(W = W.in, R = R.in, Z = Z.in)) 
     }
   }
-
+  
   #Moment generating function for Kumaraswamy distribution
   kum.MomGen <- function(a, b, m) {
     log.num <- log(b) + lgamma(1 + m/a) + lgamma(b)
     log.den <- lgamma(1 + b + m/a)
     return (exp(log.num-log.den))
   }
-
+  
   #expected profit objective function
   prft.obj <- function(params) {
     W <- params$W
     R <- params$R
     Z <- params$Z
-
+    
     #calculate lender profit
     profit <- sum(W*(P.in*(R-Z)+Z))
-
+    
     #calculate penalty given cobb-douglas utility function for borrowers
     if(penalty.RZ>0) {
       penalty <- penalty.RZ*sum(W*R^(elastic.RZ)*Z^(1-elastic.RZ))
@@ -365,15 +365,15 @@ optim.Kumar <- function(corr.mtx, P.in,
     }
     return (-(profit-penalty))
   }
-
+  
   #derivative of profit w.r.t W
   prft.obj.dW <- function(params) {
     R <- params$R
     Z <- params$Z
-
+    
     #calculate derivative of lender profit
     dprofit.dW <- P.in*(R-Z)+Z
-
+    
     #calculate derivative of penalty
     if(penalty.RZ>0) {
       dpenalty.dW <- penalty.RZ*(R^(elastic.RZ)*Z^(1-elastic.RZ))
@@ -382,16 +382,16 @@ optim.Kumar <- function(corr.mtx, P.in,
     }
     return (-(dprofit.dW-dpenalty.dW)[W.optim])
   }
-
+  
   #derivative of profit w.r.t R
   prft.obj.dR <- function(params) {
     W <- params$W
     R <- params$R
     Z <- params$Z
-
+    
     #calculate derivative of lender profit
     dprofit.dR <- W*P.in
-
+    
     #calculate derivative of penalty
     if(penalty.RZ>0) {
       dpenalty.dR <- penalty.RZ*(elastic.RZ*W*R^(elastic.RZ-1)*Z^(1-elastic.RZ))
@@ -400,16 +400,16 @@ optim.Kumar <- function(corr.mtx, P.in,
     }
     return (-(dprofit.dR-dpenalty.dR)[R.optim])
   }
-
+  
   #derivative of profit w.r.t Z
   prft.obj.dZ <- function(params) {
     W <- params$W
     R <- params$R
     Z <- params$Z
-
+    
     #calculate derivative of lender profit
     dprofit.dZ <- W*(1-P.in)
-
+    
     #calculate derivative of penalty
     if(penalty.RZ>0) {
       dpenalty.dZ <- penalty.RZ*((1-elastic.RZ)*W*R^(elastic.RZ)*Z^(-elastic.RZ))
@@ -418,7 +418,7 @@ optim.Kumar <- function(corr.mtx, P.in,
     }
     return (-(dprofit.dZ-dpenalty.dZ)[Z.optim])
   }
-
+  
   #Constraint 1: 1st moment of distribution = expected normalized profit (expected profit/max.possible.profit)
   kumMoM.1.cnst <- function(params) {
     W <- params$W
@@ -426,31 +426,31 @@ optim.Kumar <- function(corr.mtx, P.in,
     Z <- params$Z
     a <- params$a
     b <- params$b
-
+    
     #expected profit normalized against maximum possible profit
     muHat.norm <- sum(W*(P.in*(R-Z)+Z))/sum(W*R)
     return (kum.MomGen(a, b,1)-muHat.norm)
   }
-
+  
   #Derivative of 1st Moment Constraint w.r.t W
   kumMoM.1.cnst.dW <- function(params) {
     W <- params$W
     R <- params$R
     Z <- params$Z
-
+    
     #derivative of normalized expectation
     prf.vec <- (P.in*(R-Z)+Z) #profit per unit
     prf.max <- sum(W*R) #max profit
-    dg1.dW <- prf.vec/prf.max - (R%*%(t(W)%*%prf.vec))/prf.max^2
+    dg1.dW <- prf.vec/prf.max - (R%*%(t(W)%*%prf.vec))/prf.max^2 
     return (-dg1.dW[W.optim])
   }
-
+  
   #Derivative of 1st Moment Constraint w.r.t R
   kumMoM.1.cnst.dR <- function(params) {
     W <- params$W
     R <- params$R
     Z <- params$Z
-
+    
     #derivative of normalized expectation
     prf.vec <- (P.in*(R-Z)+Z) #profit per unit
     prf.max <- sum(W*R) #max profit
@@ -462,37 +462,37 @@ optim.Kumar <- function(corr.mtx, P.in,
     W <- params$W
     R <- params$R
     Z <- params$Z
-
+    
     #derivative of normalized expectation
     prf.max <- sum(W*R) #max profit
     dg1.dZ <-(W*(1-P.in))/prf.max
     return (-dg1.dZ[Z.optim])
   }
-
+  
   #Derivative of 1st Moment Constraint w.r.t a
   kumMoM.1.cnst.da <- function(params) {
     a <- params$a
     b <- params$b
-
+    
     #derivatives of kumaraswamy moment generating function
     beta.kum <- beta(1+1/a, b)
     digamma.kum <- digamma(1+1/a)-digamma(1+1/a+b)
     dg1.da <- -b*(beta.kum*digamma.kum/a^2)
     return (dg1.da)
   }
-
+  
   #Derivative of 1st Moment Constraint w.r.t b
   kumMoM.1.cnst.db <- function(params) {
     a <- params$a
     b <- params$b
-
+    
     #derivatives of kumaraswamy moment generating function
     beta.kum <- beta(1+1/a, b)
     digamma.kum <- digamma(b)-digamma(1+1/a+b)
     dg1.db <- beta.kum*(1+b*digamma.kum)
     return (dg1.db)
   }
-
+  
   #Constraint 2: 2nd moment of distribution = variance of normalized profit
   kumMoM.2.cnst <- function(params) {
     W <- params$W
@@ -500,26 +500,26 @@ optim.Kumar <- function(corr.mtx, P.in,
     Z <- params$Z
     a <- params$a
     b <- params$b
-
+    
     #vector of standard deviations
     sigma.vec <- Std*W/sum(W)*(R-Z)
     varHat.norm <- t(sigma.vec)%*%corr.mtx%*%sigma.vec
     return (kum.MomGen(a, b,2)-varHat.norm)
   }
-
+  
   #Derivative of 2nd Moment Constraint w.r.t W
   kumMoM.2.cnst.dW <- function(params) {
     W <- params$W
     R <- params$R
     Z <- params$Z
-
+    
     #vector of standard deviations
     Tot <- sum(W)
     Y   <- Std*(R-Z)
     dg2.dW <- 2/Tot^2*((corr.mtx%*%(Y*W))*Y-1/Tot*matrix(1, nrow(corr.mtx),1)%*%(t(Y*W)%*%corr.mtx%*%(Y*W)))
     return (-dg2.dW[W.optim])
   }
-
+  
   #Derivative of 2nd Moment Constraint w.r.t R
   kumMoM.2.cnst.dR <- function(params) {
     W <- params$W
@@ -531,20 +531,20 @@ optim.Kumar <- function(corr.mtx, P.in,
     dg2.dR <- 2*(corr.mtx%*%(sigma.P*(R-Z)*W.norm))*sigma.P*W.norm
     return (-dg2.dR[R.optim])
   }
-
+  
   #Derivative of 2nd Moment Constraint w.r.t Z
   kumMoM.2.cnst.dZ <- function(params) {
     W <- params$W
     R <- params$R
     Z <- params$Z
-
+    
     #vector of normalized weights
     W.norm <- W/sum(W)
     sigma.P <- Std
     dg2.dZ <- -2*(corr.mtx%*%(sigma.P*(R-Z)*W.norm))*sigma.P*W.norm
     return (-dg2.dZ[Z.optim])
   }
-
+  
   #Derivative of 2nd Moment Constraint w.r.t a
   kumMoM.2.cnst.da <- function(params) {
     a <- params$a
@@ -554,63 +554,63 @@ optim.Kumar <- function(corr.mtx, P.in,
     beta.2.kum <- beta(1+2/a, b)
     digamma.1.kum <- digamma(1+1/a)-digamma(1+1/a+b)
     digamma.2.kum <- digamma(1+2/a)-digamma(1+2/a+b)
-
+    
     dm2.da <- -2*b*(beta.2.kum*digamma.2.kum/a^2)
     dm1sq.da <- -2*b^2*beta.1.kum^2*digamma.1.kum/a^2
     return (dm2.da)
   }
-
+  
   #Derivative of 2nd Moment Constraint w.r.t b
   kumMoM.2.cnst.db <- function(params) {
     a <- params$a
     b <- params$b
-
+    
     #derivatives of kumaraswamy moment generating function
     beta.1.kum <- beta(1+1/a, b)
     beta.2.kum <- beta(1+2/a, b)
     digamma.1.kum <- digamma(b)-digamma(1+1/a+b)
     digamma.2.kum <- digamma(b)-digamma(1+2/a+b)
-
+    
     dm2.db <- beta.2.kum*(1+b*digamma.2.kum)
     dm1sq.db <- 2*b*beta.1.kum^2*(1+b*digamma.1.kum)
     return (dm2.db)
   }
-
+  
   #Constraint 3: Tail of normalized profit distribution <= k.alpha
   kumTail.cnst <- function(params) {
     W <- params$W
     R <- params$R
     a <- params$a
     b <- params$b
-
+    
     #define k.alpha % probability that losss is >= z.alpha*ValueAtRisk
     tail.losslim <- sum(W)/sum(W*R)*(1-z.alpha)
-    tail.invcdf <- (1-(1-k.alpha)^(1/b))^(1/a)
+    tail.invcdf <- (1-(1-k.alpha)^(1/b))^(1/a) 
     return (tail.losslim-tail.invcdf)
   }
-
+  
   #Derivative of Tail Constraint w.r.t W
   kumTail.cnst.dW <- function(params) {
     W <- params$W
     R <- params$R
-
+    
     #weighted average return
     R.avg <- t(W)%*%R
     dg3.dW <- (1/(R.avg)-sum(W)*R/(R.avg)^2)*(1-z.alpha)
     return (dg3.dW[W.optim])
   }
-
+  
   #Derivative of Tail Constraint w.r.t R
   kumTail.cnst.dR <- function(params) {
     W <- params$W
     R <- params$R
-
+    
     #weighted average return
     R.avg <- t(W)%*%R
     dg3.dR <- (-sum(W)*W/(R.avg)^2)*(1-z.alpha)
     return (dg3.dR[R.optim])
   }
-
+  
   #Derivative of Tail Constraint w.r.t a
   kumTail.cnst.da <- function(params) {
     a <- params$a
@@ -623,18 +623,18 @@ optim.Kumar <- function(corr.mtx, P.in,
   kumTail.cnst.db <- function(params) {
     a <- params$a
     b <- params$b
-
+    
     #derivatives of kumaraswamy inverse CDF
     dg3.db <- ((1-k.alpha)^(1/b)*log(1-k.alpha)*(1-(1-k.alpha)^(1/b))^(1/a-1))/(a*b^2)
     return (-dg3.db)
   }
-
+  
   #Function to return gradient for objective function
   obj.grad.eval <- function (X)  {
-
+    
     #update parameters
-    params <- opt.update.WRZ (X)
-
+    params <- opt.update.WRZ (X) 
+    
     #calculate gradient
     grad <- rep(0, n.opt)
     if(W.TF) {
@@ -649,15 +649,15 @@ optim.Kumar <- function(corr.mtx, P.in,
     return (list('objective' = prft.obj(params),
                  'gradient' = grad))
   }
-
+  
   #Function to return Jacobian for equality constraints
   eql.cnst.eval <- function (X)  {
-
+    
     #update parameters
-    params <- opt.update.WRZ (X)
+    params <- opt.update.WRZ (X) 
     #calculate jacobian
     jcb.mtx <- matrix(0, nrow = 2, ncol = n.opt)
-
+    
     #for optimization params
     if(W.TF) {
       jcb.mtx[1, W.indx] <- kumMoM.1.cnst.dW(params)
@@ -671,26 +671,26 @@ optim.Kumar <- function(corr.mtx, P.in,
       jcb.mtx[1, Z.indx] <- kumMoM.1.cnst.dZ(params)
       jcb.mtx[2, Z.indx] <- kumMoM.2.cnst.dZ(params)
     }
-
+    
     #for distribution params
     jcb.mtx[1,(n.opt-1)] <- kumMoM.1.cnst.da(params)
     jcb.mtx[2,(n.opt-1)] <- kumMoM.2.cnst.da(params)
     jcb.mtx[1, n.opt] <- kumMoM.1.cnst.db(params)
     jcb.mtx[2, n.opt] <- kumMoM.2.cnst.db(params)
-
+    
     #For constraints
     return (list('constraints' = c(kumMoM.1.cnst(params), kumMoM.2.cnst(params)),
                  'jacobian' = jcb.mtx))
   }
   #Function to return Jacobian for inequality constraint
   ineq.cnst.eval <- function (X)  {
-
+    
     #update parameters
-    params <- opt.update.WRZ (X)
-
+    params <- opt.update.WRZ (X) 
+    
     #calculate jacobian
     jcb.mtx <- matrix(0, nrow = 1, ncol = n.opt)
-
+    
     #for optimization params
     if(W.TF) {
       jcb.mtx[1, W.indx] <- kumTail.cnst.dW(params)
@@ -698,23 +698,23 @@ optim.Kumar <- function(corr.mtx, P.in,
     if(R.TF) {
       jcb.mtx[1, R.indx] <- kumTail.cnst.dR(params)
     }
-
+    
     #for distribution params
     jcb.mtx[1,(n.opt-1)] <- kumTail.cnst.da(params)
     jcb.mtx[1, n.opt] <- kumTail.cnst.db(params)
-
+    
     return (list('constraints' = kumTail.cnst(params),
                  'jacobian' = jcb.mtx))
   }
-
+  
   #Function combines equality and inequality constraints in a single objec (required for certain algorithms)
   combo.cnst.eval <- function (X)  {
     #update parameters
-    params <- opt.update.WRZ (X)
-
+    params <- opt.update.WRZ (X) 
+    
     #calculate jacobian
     jcb.mtx <- matrix(0, nrow = 3+n.S+n.C, ncol = n.opt)
-
+    
     #for optimization params
     if(W.TF) {
       jcb.mtx[1, W.indx] <- kumTail.cnst.dW(params)
@@ -730,21 +730,21 @@ optim.Kumar <- function(corr.mtx, P.in,
       jcb.mtx[2, Z.indx] <- kumMoM.2.cnst.dZ(params)
       jcb.mtx[3, Z.indx] <- -kumMoM.2.cnst.dZ(params)
     }
-
+    
     #for distribution param a
     jcb.mtx[1,(n.opt-1)] <- kumTail.cnst.da(params)
     jcb.mtx[2,(n.opt-1)] <- kumMoM.2.cnst.da(params)
     jcb.mtx[3,(n.opt-1)] <- -kumMoM.2.cnst.da(params)
-
+    
     #for distribution param b
     jcb.mtx[1, n.opt] <- kumTail.cnst.db(params)
     jcb.mtx[2, n.opt] <- kumMoM.2.cnst.db(params)
     jcb.mtx[3, n.opt] <- -kumMoM.2.cnst.db(params)
-
+    
     #accumulate constraints
     cnst <- c(kumTail.cnst(params),
               kumMoM.2.cnst(params), -kumMoM.2.cnst(params))
-
+    
     W <- params$W
     R <- params$R
     Z <- params$Z
@@ -753,19 +753,19 @@ optim.Kumar <- function(corr.mtx, P.in,
       #constraint values
       trust.ineq <- W[W.optim]+W[S.optim]*(-Z[S.optim])-Wlim
       cnst <- c(cnst, trust.ineq)
-
+      
       #constraint jacobian
-      jcb.mtx[c(4:(3+n.S)), W.indx] <- 1
+      jcb.mtx[c(4:(3+n.S)), W.indx] <- 1 
       #jcb.mtx[c(4:(3+n.S)), ZS.indx] <- -W[S.optim]
-      jcb.mtx[c(4:(3+n.S)), ZS.indx] <- -(W[S.optim]+Z[S.optim]*S.dZ.intrp(R[S.optim],Z[S.optim]))
-      jcb.mtx[c(4:(3+n.S)), RS.indx] <- -Z[S.optim]*S.dR.intrp(R[S.optim],Z[S.optim])
+      jcb.mtx[c(4:(3+n.S)), ZS.indx] <- -(W[S.optim]+Z[S.optim]*S.dZ.intrp(R[S.optim],Z[S.optim])) 
+      jcb.mtx[c(4:(3+n.S)), RS.indx] <- -Z[S.optim]*S.dR.intrp(R[S.optim],Z[S.optim]) 
     }
     #New constraint: amount purchased+amountSold == Total Consumed
     if(C.TF){
       #constraint values
       cnsm.ineq <- W[W.optim]+ifelse(S.TF,W[S.optim],0)-Clim
       cnst <- c(cnst, cnsm.ineq)
-
+      
       #constraint jacobian
       jcb.mtx[c((4+n.S):(3+n.S+n.C)), W.indx] <- 1
       if(S.TF){
@@ -776,52 +776,52 @@ optim.Kumar <- function(corr.mtx, P.in,
       cnst <- c(cnst, -cnsm.ineq)
       jcb.mtx <- rbind(jcb.mtx,-jcb.mtx[c((4+n.S):(3+n.S+n.C)),])
     }
-
+    
     return (list('constraints' = cnst, 'jacobian' = jcb.mtx))
   }
-
+  
   #Function directly evalues tail inequality without equality constraints on moments
   ineq.drct.eval <- function (X)  {
-
+    
     #update parameters
-    params <- opt.update.WRZ (X)
+    params <- opt.update.WRZ (X) 
     W <- params$W
     R <- params$R
     Z <- params$Z
-
+    
     #expected profit normalized against maximum possible profit
     muHat.norm <- sum(W*(P.in*(R-Z)+Z))/sum(W*R)
-
+    
     #variance normalized against amount lent
     sigma.vec <- Std*W/sum(W)*(R-Z)
     varHat.norm <- t(sigma.vec)%*%corr.mtx%*%sigma.vec
-
+    
     #method of moments estimate for distribution
     fit.kumar <- kumar.MoM(muHat.norm, varHat.norm)
     a <- fit.kumar[1]
     b <- fit.kumar[2]
-
+    
     #define k.alpha % probability that losss is >= z.alpha*ValueAtRisk
     tail.losslim <- sum(W)/sum(W*R)*(1-z.alpha)
-    tail.invcdf <- (1-(1-k.alpha)^(1/b))^(1/a)
+    tail.invcdf <- (1-(1-k.alpha)^(1/b))^(1/a) 
     tail.ineq <- tail.losslim-tail.invcdf
-
+    
     #in case no other ineuqality
     if(!S.TF) {
       return (tail.ineq)
     } else {
       if(W[S.optim]<0) {browser()}
-
+      
       #amount purchased+securitized <= trust channel
       trust.ineq <- W[W.optim]+W[S.optim]*(-Z[S.optim])-Wlim
       return (c(tail.ineq, trust.ineq))
     }
   }
-
+  
   if(browse) {
     browser()
   }
-
+  
   #run solver - retrieve solution
   if(relax) {
     soln.CBY <- nloptr::nloptr(x0 = X0.opt,
@@ -855,7 +855,7 @@ optim.Kumar <- function(corr.mtx, P.in,
                                eval_f = obj.grad.eval,
                                eval_g_ineq = combo.cnst.eval,
                                opts = c(list(algorithm = 'NLOPT_GN_ISRES'), controls))
-    return (list(W = soln.ISR$solution[W.indx],
+    return (list(W = soln.ISR$solution[W.indx], 
                  R = soln.ISR$solution[R.indx],
                  Z = soln.ISR$solution[Z.indx],
                  K = soln.ISR$solution[K.indx],
@@ -904,7 +904,7 @@ optim.Kumar <- function(corr.mtx, P.in,
                                heq = function (X)  {c(kumMoM.1.cnst(opt.update.WRZ (X) ),
                                                       kumMoM.2.cnst(opt.update.WRZ (X) ))},
                                heqjac = function (X)  {eql.cnst.eval (X) [[2]]},
-                               localsolver = 'MMA', control = list(maxeval = 50000, xtol_rel = 0.1))
+                               localsolver = 'MMA', control = list(maxeval = 50000, xtol_rel = 0.1)) 
   }
   if(algorithm == 'constrOptim.nl') { #status - runs but solutions don't make sense
     soln.ALB <- alabama::constrOptim.nl(X0.opt,

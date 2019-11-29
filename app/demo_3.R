@@ -2,20 +2,11 @@ library(dplyr)
 library(networkD3)
 library(network)
 
-### om_skeleton profile.R
-### Tom Weishaar - Oct 2017 - v0.1
-### Skeleton for multi-page, multi-user web site in Shiny, with user authentication
+postBrwTransactions <- readRDS(here::here("ShinyApps/Arboreum/app/pregenerated/PostLoanTransactions.rds"))
+postBrwNetwork      <- readRDS(here::here("ShinyApps/Arboreum/app/pregenerated/PostLoanNetwork.rds"))
 
-source(here::here("app/src/Generate.R"))
-source(here::here("app/src/Propagate.R"))
-source(here::here("app/src/Traverse.R"))
-
-postBrwTransactions <- readRDS(here::here("app/tmp/precookedFwdTransactions.rds"))
-postBrwNetwork      <- readRDS(here::here("app/tmp/precookedFwdNetwork.rds"))
-fwdPropExposures    <- readRDS(here::here("app/tmp/precookedFwdPropExposures.rds"))
-
-postBrwAssets <- postBrwNetwork$val[[1]]$Assets
-postBrwLiabilities <- postBrwNetwork$val[[1]]$Liabilities
+postBrwAssets <- postBrwNetwork$val[[111]]$Assets
+postBrwLiabilities <- postBrwNetwork$val[[111]]$Liabilities
 
 output$yourAssets <- DT::renderDataTable({
   as.data.frame(postBrwAssets)

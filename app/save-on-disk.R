@@ -12,8 +12,8 @@
 # A function that builds a user row for the database table. Having a single function for this
 #    makes it somewhat easier to modify the table during program development.
 buildU <- function() {                                                  # tibbles are dplyr's enhanced dataframes
-   return(tibble(username="", hashed_pw="", email="", emailverified=F, sp=0, sessionid="",
-                 reg_date=as.POSIXct(NA), ev_date=as.POSIXct(NA), lastlogin_date=as.POSIXct(NA)))
+  return(tibble(username="", hashed_pw="", email="", emailverified=F, sp=0, sessionid="",
+                reg_date=as.POSIXct(NA), ev_date=as.POSIXct(NA), lastlogin_date=as.POSIXct(NA)))
 }
 # reg_date = registration date
 # ev_date = email verified date
@@ -26,15 +26,15 @@ load_users <- function() { readRDS(file="users-table.RDS") }
 
 # An initialization function that creates the first user, who must be a superuser.
 init_users <- function() { users <- buildU()
-                          users$username = "Admin"
-                          users$hashed_pw = hashpw(admin_password)
-                          users$email = admin_email_address
-                          users$emailverified = TRUE
-                          users$sp = 1000
-                          users$sessionid = ""
-                          users$reg_date = now()
-                          users$ev_date = now()
-                          return(users)
+users$username = "Admin"
+users$hashed_pw = hashpw(admin_password)
+users$email = admin_email_address
+users$emailverified = TRUE
+users$sp = 1000
+users$sessionid = ""
+users$reg_date = now()
+users$ev_date = now()
+return(users)
 }
 
 # Set up connection and figure out whether initialization is needed. If so, do it.
@@ -42,33 +42,33 @@ if(file.exists("users-table.RDS")) { site_users <- load_users() } else { site_us
 
 # function for saving / updating a row of the user table
 userSave <- function(u) {                                       # u is an entire row for the users table; see buildU()
-   if(u$username =="") {
-      cat("\nWARNING: In saveUser(), $username was blank.\n\n")
-   } else {
-      if(any(site_users$username == u$username)) {              # do we already have this user?
-         site_users[site_users$username == u$username,] <<- u   #    update all columns
-      } else {
-         site_users <<- rbind(site_users, u)                    # if not, add the user's row to the table
-      }
-      save_users()                                              # save
-   }
+  if(u$username =="") {
+    cat("\nWARNING: In saveUser(), $username was blank.\n\n")
+  } else {
+    if(any(site_users$username == u$username)) {              # do we already have this user?
+      site_users[site_users$username == u$username,] <<- u   #    update all columns
+    } else {
+      site_users <<- rbind(site_users, u)                    # if not, add the user's row to the table
+    }
+    save_users()                                              # save
+  }
 }
 
 # function for getting a user's row from the user table by username or sessionid
 userGet <- function(column, value) {            # This function returns the whole row for a user by username or sessionid
-   colvec <- pull(site_users, column)           #   If not found, returns a blank row. (pull() is a dplyr function for
-   if(column=="username") {                     #   getting a vector out of a tibble; otherwise it would be a tibble.)
-      tfvec <- tolower(colvec)==tolower(value)  # For usernames be case insensitive
-   } else {
-      tfvec <- colvec==value                    # create a logical vector
-   }
-   if(sum(tfvec)==0) {                          # sum = 0 means there are no TRUEs
-      return(buildU())                          #    return a blank user
-   }
-   if(sum(tfvec)==1) {                          # test for 1 and only 1 hit
-      return(site_users[tfvec,])                #    return all columns for this user
-   }
-   cat(paste0("\nWARNING: Database has duplicates in ", column, ".\n\n"))  # This should never happen, he said.
+  colvec <- pull(site_users, column)           #   If not found, returns a blank row. (pull() is a dplyr function for
+  if(column=="username") {                     #   getting a vector out of a tibble; otherwise it would be a tibble.)
+    tfvec <- tolower(colvec)==tolower(value)  # For usernames be case insensitive
+  } else {
+    tfvec <- colvec==value                    # create a logical vector
+  }
+  if(sum(tfvec)==0) {                          # sum = 0 means there are no TRUEs
+    return(buildU())                          #    return a blank user
+  }
+  if(sum(tfvec)==1) {                          # test for 1 and only 1 hit
+    return(site_users[tfvec,])                #    return all columns for this user
+  }
+  cat(paste0("\nWARNING: Database has duplicates in ", column, ".\n\n"))  # This should never happen, he said.
 }
 
 # Need to determine whether a user exists in the user table by username or sessionid?
