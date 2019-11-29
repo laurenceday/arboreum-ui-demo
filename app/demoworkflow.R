@@ -45,9 +45,12 @@ propagate <- modules::use(here::here("app/src/Propagate.R"))
 
 #### Generate Example Graph ####
 peri <- generate$buildCorePeri(N = 100, K = 10)
+saveRDS(peri, here::here("app/tmp/preGeneratedCorePeriNetwork.rds"), version = 2)
 rslt <- generate$initializeSheets(peri, K = 10, A0 = 10000)
+saveRDS(rslt, here::here("app/tmp/preGeneratedInitialisedSheets.rds"), version = 2)
 
 rslt0 <- traverse$calcRiskArray(rslt[[2]])
+saveRDS(rslt0, here::here("app/tmp/preGeneratedRiskArray.rds"), version=2)
 risk.array <- rslt0[[1]]
 ntwk <- rslt0[[2]]
 rm(rslt)

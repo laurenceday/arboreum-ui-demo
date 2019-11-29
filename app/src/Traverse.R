@@ -21,8 +21,7 @@ utils    <- modules::use(here::here("app/src/Utils.R"))
 #' @export
 #'
 #' @examples
-calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'in', max.depth = 10, converge = FALSE,runParallel=TRUE) {
-  print('In calcRiskArray')
+calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'in', max.depth = 10, converge = FALSE,runParallel=FALSE) {
   #' Recursively traverse network and calculate how trust cascades indirectly from origin to other nodes
   #' see Sun, Zhu, YHn (2006) Information Theoretic Framework for Trust Modeling for equations to update trust
   #'
@@ -79,7 +78,6 @@ calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'in',
       #recurse - do same for all children nodes
       prpg.trust.Mtx.List <- list()
       for(i in c(1:length(indx.trusted))) {
-        print(i)
         prpg.trust.Mtx.v <- traverse.CalcTrust(ntwk, vrtx.trusted[i], edgeMtx,
                                                direction = direction, max.depth = max.depth, crnt.depth = crnt.depth,
                                                v.visited = v.visited, converge = converge)
@@ -133,6 +131,7 @@ calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'in',
   #vertices
   n.vrt <- ntwk %n% "n"
   ntwk.i <- utils$ntwk2igraph.cvrt(ntwk)
+  print('Here')
 
   #Indirect Trust between all members
   edges.Mtx <- stats::setNames(as.data.frame(network::as.edgelist(ntwk, attrname = c(ntwk.attr), as.sna.edgelist = TRUE)),
@@ -172,6 +171,7 @@ calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'in',
 
   #calculate how trust cascades indirectly
   if(runParallel){
+    print('Parallel pass')
     #parallelize
     no_cores <- parallel::detectCores() - 2
     registerDoParallel(cores = no_cores)
@@ -190,9 +190,11 @@ calcRiskArray <- function(ntwk, nodes=c(), ntwk.attr = 'Risk', direction = 'in',
         if(all(z[,1]>0)) {
           V[i, z[[1]]] <- z[[2]] #store row-wise
         }
+        print(paste('v', i))
       }
     risk.mtx <- as.matrix(V)
   } else {
+    print('Non-parallel pass')
     for(i in nodes) {
       z <- traverse.CalcTrust(ntwk, i, edges.Mtx, direction = direction, converge = converge)
       z <- z[complete.cases(z),]
