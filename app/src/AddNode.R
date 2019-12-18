@@ -8,6 +8,7 @@ correlation <- modules::use(here::here("ShinyApps/Arboreum/app/src/PortfolioCorr
 trustRisk <- modules::use(here::here("ShinyApps/Arboreum/app/src/TrustToRisk.R"))
 traverse <- modules::use(here::here("ShinyApps/Arboreum/app/src/Traverse.R"))
 utils    <- modules::use(here::here("ShinyApps/Arboreum/app/src/Utils.R"))
+
 #Add node
 addNode2Ntwk <- function(ntwk,risk.array,assets,out.DF,in.DF=NULL,direction='in'){
   
@@ -121,34 +122,8 @@ addNode2Ntwk <- function(ntwk,risk.array,assets,out.DF,in.DF=NULL,direction='in'
     }
   }
   
-  #function to get local edgelist
-  rtrv.lcl.Edgelist <- function(ntwk, v, max.dist = 6) {
-    
-    #fetch edgelist
-    edges.Mtx <- network::as.edgelist(ntwk, as.sna.edgelist = TRUE)[, c(1,2)]
-    colnames(edges.Mtx) <- c('from', 'to')
-    
-    #subgraph of v
-    v.bfs <- igraph::bfs(utils$ntwk2igraph.cvrt(ntwk),1, neimode = 'out', dist = TRUE, order = TRUE, father = TRUE, rank = TRUE, pred = TRUE,unreachable = FALSE)
-    x <- edges.Mtx[edges.Mtx[, 'to'] %in% which(!is.nan(v.bfs$dist) & v.bfs$dist<max.dist),]
-    x <- x[x[, 'to']!= v,]
-    x <- x[x[, 'from'] %in% c(v, which(!is.nan(v.bfs$dist) & v.bfs$dist<max.dist)),]
-    
-    #Remove cycles
-    y <- unique(c(x[, c(1,2)]))
-    x[,1] <- match(x[,1], y)
-    x[,2] <- match(x[,2], y)
-    x.adj <- matrix(0, length(unique(c(x[, c(1,2)]))), length(unique(c(x[, c(1,2)]))))
-    x.adj[x[, c(1,2)]] <- 1
-    x.dag <- predictionet::adj.remove.cycles(x.adj, maxlength = 10)
-    x.dag <- which(x.dag$adjmat.acyclic>0, arr.ind = TRUE)
-    x.dag[,1] <- y[x.dag[,1]]
-    x.dag[,2] <- y[x.dag[,2]]
-    colnames(x.dag) <- c('from', 'to')
-    return (x.dag)
-  }
   #retrieve nodes to update
-  nodes2update <- sort(unique(c(rtrv.lcl.Edgelist(ntwk,n.vrt+1))))  
+  nodes2update <- sort(unique(c(utils$rtrv.lcl.Edgelist(ntwk,n.vrt+1))))  
   
   #Update risk array
   rslt <- tryCatch({traverse$calcRiskArray(ntwk,nodes=nodes2update,runParallel=TRUE)}, 
@@ -195,5 +170,22 @@ addNode2Ntwk <- function(ntwk,risk.array,assets,out.DF,in.DF=NULL,direction='in'
     colnames(mtx) <- c('to', 'Risk.coef', 'alpha.Beta', 'beta.Beta', 'offest.Beta')
     ntwk[['val']][[v]]$Subj.risk <- as.data.frame(mtx)
   }
+  
+  #Add assets, liabilities, portfolio dataframe if not present
+  if(!is.data.frame(ntwk[['val']][[n.vrt]]$Portfolio)){
+    ntwk[['val']][[n.vrt]]$Portfolio <- data.frame(to=numeric(), tot.trust=numeric(), lent=numeric(), rate=numeric(),security=numeric())
+  }
+  if(!is.data.frame(ntwk[['val']][[n.vrt]]$Assets)){
+    ntwk[['val']][[n.vrt]]$Assets <- data.frame(borrower = numeric(), via = numeric(), via.trust = numeric(),
+                                            risk.coef=numeric(), amount = numeric(), rate = numeric(),
+                                            security = numeric(), type=character())}
+  
+  if(!is.data.frame(ntwk[['val']][[n.vrt]]$Liabilities)){
+    ntwk[['val']][[n.vrt]]$Liabilities <- data.frame(borrower = numeric(), via = numeric(), lender = numeric(),
+                                                 amount = numeric(), rate = numeric(),security = numeric(),
+                                                 type=character())
+  }
+  if(is.na(ntwk$val[[n.vrt]]$PtflAtRisk)){ntwk$val[[n.vrt]]$PtflAtRisk <- 4/5 *assets}
+  
   return (list('risk.array'=risk.array, 'ntwk'=ntwk))
 }

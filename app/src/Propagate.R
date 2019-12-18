@@ -55,7 +55,7 @@ cnsm.ZR.backsolve <- function(ntwk, v, orgn.brw.mtx, S.out = list(),
   corr.mtx <- correlation$correlationUpdate(ntwk, v, v.brw, direction = 'in')
   
   #check if borrower currently in loan portfolio
-  v.brw.in.ptfl <- intersect(v.brw, as.numeric(rownames(ntwk$val[[v]]$Assets$borrower)))
+  v.brw.in.ptfl <- intersect(v.brw, as.numeric(ntwk$val[[v]]$Assets$borrower))
   if(length(v.brw.in.ptfl)>0) { #convert identifier to negative number if so
     indx.b <- match(v.brw.in.ptfl, as.numeric(rownames(corr.mtx)))
     rownames(corr.mtx)[indx.b] <- -as.numeric(rownames(corr.mtx)[indx.b])
@@ -295,55 +295,8 @@ loan.backProp <- function(ntwk, root,
                                           xtol_abs=c(0.5,0.01,0.01,0.001,0.001), span=0.5),
                           browse = FALSE) {
   
-  #fetch subgraph of v which is its largest connected component 
-  rtrv.lcl.Edgelist <- function(ntwk, v, max.dist = 6) {
-    
-    #fetch edgelist
-    edges.Mtx <- network::as.edgelist(ntwk, as.sna.edgelist = TRUE)[, c(1,2)]
-    colnames(edges.Mtx) <- c('from', 'to')
-    
-    #subgraph of v
-    v.bfs <- igraph::bfs(utils$ntwk2igraph.cvrt(ntwk),1, neimode = 'out', dist = TRUE, order = TRUE, father = TRUE, rank = TRUE, pred = TRUE,unreachable = FALSE)
-    x <- edges.Mtx[edges.Mtx[, 'to'] %in% which(!is.nan(v.bfs$dist) & v.bfs$dist<max.dist),]
-    x <- x[x[, 'to']!= v,]
-    x <- x[x[, 'from'] %in% c(v, which(!is.nan(v.bfs$dist) & v.bfs$dist<max.dist)),]
-    
-    #Remove cycles
-    y <- unique(c(x[, c(1,2)]))
-    x[,1] <- match(x[,1], y)
-    x[,2] <- match(x[,2], y)
-    x.adj <- matrix(0, length(unique(c(x[, c(1,2)]))), length(unique(c(x[, c(1,2)]))))
-    x.adj[x[, c(1,2)]] <- 1
-    x.dag <- predictionet::adj.remove.cycles(x.adj, maxlength = 10)
-    x.dag <- which(x.dag$adjmat.acyclic>0, arr.ind = TRUE)
-    x.dag[,1] <- y[x.dag[,1]]
-    x.dag[,2] <- y[x.dag[,2]]
-    colnames(x.dag) <- c('from', 'to')
-    return (x.dag)
-  }
-  
-  #post-order depth-first-search for backprop order of above subgraph
-  postorder.DFS <- function(edgeList, root, max.depth = 10) {
-    v.visit <- c()
-    v.order <- c()
-    traverse.DFS <- function(v, cur.depth) {
-      v.visit <<- unique(c(v.visit, v))
-      cur.depth <- cur.depth+1
-      if(cur.depth<max.depth) {
-        for(v.new in edgeList[edgeList[, 'from']== v, 'to']) {
-          if(!(v.new %in% v.visit)) {
-            traverse.DFS(v.new, cur.depth = cur.depth)
-          }
-        }
-      }
-      v.order <<- c(v.order, v)
-    }
-    traverse.DFS(root, cur.depth = 0)
-    return (v.order)
-  }
-  
-  subntwk.EL <- rtrv.lcl.Edgelist(ntwk,root)
-  back.order <- setdiff(postorder.DFS(subntwk.EL, root), root)
+  subntwk.EL <- utils$rtrv.lcl.Edgelist(ntwk,root,remove.cycles.len = 0)
+  back.order <- setdiff(utils$postorder.DFS(subntwk.EL, root), root)
   
   #If back.order is NULL then return
   if(length(back.order)==0){
@@ -465,7 +418,7 @@ cnsm.ZR.frwdsolve <- function(ntwk, v, prop.mtx, S.out = list(),zLim = 0.99, rLi
   corr.mtx <- correlation$correlationUpdate(ntwk, v, v.brw, direction = 'in')
   
   #check if borrower currently in loan portfolio
-  v.brw.in.ptfl <- intersect(v.brw, as.numeric(rownames(ntwk$val[[v]]$Assets$borrower)))
+  v.brw.in.ptfl <- intersect(v.brw, as.numeric(ntwk$val[[v]]$Assets$borrower))
   if(length(v.brw.in.ptfl)>0) { #convert identifier to negative number if so
     indx.b <- match(v.brw.in.ptfl, as.numeric(rownames(corr.mtx)))
     rownames(corr.mtx)[indx.b] <- -as.numeric(rownames(corr.mtx)[indx.b])
@@ -652,53 +605,6 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
                                            xtol_rel=0.1,xtol_abs=c(0.5,0.01,0.01,0.001,0.001), span = 0.5),
                            browse = FALSE){
   
-  #fetch subgraph of v which is its largest connected component 
-  rtrv.lcl.Edgelist <- function(ntwk, v, max.dist = 6) {
-    
-    #fetch edgelist
-    edges.Mtx <- network::as.edgelist(ntwk, as.sna.edgelist = TRUE)[, c(1,2)]
-    colnames(edges.Mtx) <- c('from', 'to')
-    
-    #subgraph of v
-    v.bfs <- igraph::bfs(utils$ntwk2igraph.cvrt(ntwk),1, neimode = 'out', dist = TRUE, order = TRUE, father = TRUE, rank = TRUE, pred = TRUE,unreachable = FALSE)
-    x <- edges.Mtx[edges.Mtx[, 'to'] %in% which(!is.nan(v.bfs$dist) & v.bfs$dist<max.dist),]
-    x <- x[x[, 'to']!= v,]
-    x <- x[x[, 'from'] %in% c(v, which(!is.nan(v.bfs$dist) & v.bfs$dist<max.dist)),]
-    
-    #Remove cycles
-    y <- unique(c(x[, c(1,2)]))
-    x[,1] <- match(x[,1], y)
-    x[,2] <- match(x[,2], y)
-    x.adj <- matrix(0, length(unique(c(x[, c(1,2)]))), length(unique(c(x[, c(1,2)]))))
-    x.adj[x[, c(1,2)]] <- 1
-    x.dag <- predictionet::adj.remove.cycles(x.adj, maxlength = 10)
-    x.dag <- which(x.dag$adjmat.acyclic>0, arr.ind = TRUE)
-    x.dag[,1] <- y[x.dag[,1]]
-    x.dag[,2] <- y[x.dag[,2]]
-    colnames(x.dag) <- c('from', 'to')
-    return (x.dag)
-  }
-  
-  #post-order depth-first-search for backprop order of above subgraph
-  postorder.DFS <- function(edgeList, root, max.depth = 10) {
-    v.visit <- c()
-    v.order <- c()
-    traverse.DFS <- function(v, cur.depth) {
-      v.visit <<- unique(c(v.visit, v))
-      cur.depth <- cur.depth+1
-      if(cur.depth<max.depth) {
-        for(v.new in edgeList[edgeList[, 'from']== v, 'to']) {
-          if(!(v.new %in% v.visit)) {
-            traverse.DFS(v.new, cur.depth = cur.depth)
-          }
-        }
-      }
-      v.order <<- c(v.order, v)
-    }
-    traverse.DFS(root, cur.depth = 0)
-    return (v.order)
-  }
-  
   #Convert Matrix to loess smoothin function
   smooth.loess <- function(C.ZR) {
     C.ZR <- round(C.ZR,2)
@@ -712,8 +618,11 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
   }
   
   #figure out order of node traversal
-  subntwk.EL <- rtrv.lcl.Edgelist(ntwk,root)
-  frwd.order <- setdiff(rev(postorder.DFS(subntwk.EL, root)),root)
+  subntwk.EL <- as.numeric(do.call(rbind, strsplit(sapply(strsplit(names(S.list), "\\."), "[", 1),'_')),drop=FALSE)
+  subntwk.EL <- as.data.frame(matrix(subntwk.EL,ncol=2))[,c(2,1)]
+  colnames(subntwk.EL) <- c('from','to')
+  
+  frwd.order <- unique(rev(as.numeric(sapply(strsplit( names(S.list), "_"), "[", 1)))) #setdiff(rev(utils$postorder.DFS(subntwk.EL, root)),root)
   
   #If back.order is NULL then return
   if(length(frwd.order)==0){
@@ -747,13 +656,17 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
   #Iterate over frwd.order
   for(v in frwd.order){
     
-    #index of v in existing v.in
-    #v.indx <- v.in.indx[as.numeric(sapply(strsplit(v.in, "_"), "[", 1))==v]
+    #create propogation mtx
     v.indx <- which(subnet.DF$to==v)
+    prop.mtx <- as.matrix(subnet.DF[v.indx,c('brw','from','to','Amt.C','Rate.C','Scrt.C')]) #loan assets coming in
     
-    #create prop.mtx
-    prop.mtx <- as.matrix(subnet.DF[subnet.DF[, 'to']== v,
-                                    c('brw','from','to','Amt.C','Rate.C','Scrt.C')]) #loan assets coming in
+    if(any(is.na(prop.mtx))){
+      #prune edges
+      subnet.DF <- subnet.DF[-match(rownames(prop.mtx)[is.na(prop.mtx[,'Amt.C'])],rownames(subnet.DF)),]
+      v.indx <- which(subnet.DF$to==v)
+      prop.mtx <- as.matrix(subnet.DF[v.indx,c('brw','from','to','Amt.C','Rate.C','Scrt.C')]) #loan assets coming in
+    }
+    
     print(paste0('Frwd-Prop from {',paste(prop.mtx[,'from'],collapse=',') ,'} to ',v))
     
     #vertices to propagate to
@@ -764,8 +677,16 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
       v.in <- integer(0)
       v.in.indx <-  integer(0)
     }
-    #Optimize to determine Amount Sold, Sell Rate, and Sell Collateral
+    if(any(is.na(v.in.indx))){ #append missing row
+      newrow <- as.numeric(do.call(rbind, strsplit(sapply(strsplit(v.in[is.na(v.in.indx)], "\\."), "[", 1),'_')),drop=FALSE)
+      newrow <- as.data.frame(matrix(newrow,ncol=2))
+      colnames(newrow) <- c('to','from')
+      newrow$brw <- root
+      subnet.DF <- plyr::rbind.fill(subnet.DF,newrow[,c('from','to','brw')])
+      v.in.indx <- match(sapply(strsplit(v.in, "\\."), "[", 1),paste0(subnet.DF[,2],'_',subnet.DF[,1]))
+    }
     
+    #Optimize to determine Amount Sold, Sell Rate, and Sell Collateral
     rslt <- tryCatch({cnsm.ZR.frwdsolve(ntwk,v, prop.mtx, S.out = S.list[v.in],
                                         zLim = zLim, rLim = prop.mtx[,'Rate.C'],
                                         algorithm=algorithm, controls=controls, browse=browse)
@@ -816,7 +737,7 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
       ntwk[['val']][[v]]$Assets <- data.frame(borrower=numeric(),via=numeric(),via.trust=numeric(),risk.coef=numeric(),
                                               amount=numeric(),rate=numeric(),security=numeric(),type=character())
     }
-    if(!is.data.frame(ntwk[['val']][[v]]$Liabilites)){
+    if(!is.data.frame(ntwk[['val']][[v]]$Liabilities)){
       ntwk[['val']][[v]]$Liabilities <- data.frame(borrower=numeric(),via=numeric(),lender=numeric(),
                                                    amount=numeric(),rate=numeric(),security=numeric(),type=character())
     }
@@ -886,7 +807,8 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
                 security=weighted.mean(Scrt.C,Amt.C)) %>% 
       mutate(tot.trust=NA,
              Risk.coef=ntwk[['val']][[v]]$Subj.risk[ntwk[['val']][[v]]$Subj.risk$to==root,'Risk.coef'],
-             to=root) %>% select(to,Risk.coef,tot.trust,lent,rate,security)
+             to=root) %>% select(to,Risk.coef,tot.trust,lent,rate,security) %>%
+      filter(!is.nan(rate))
     
     sumDF.hdge <-  subnet.DF[v.indx,] %>% 
       summarise(lent=sum(Amt.S),
@@ -894,7 +816,8 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
                 security=weighted.mean(Scrt.C,Amt.C)-weighted.mean(Scrt.S,Amt.S))  %>% 
       mutate(tot.trust=NA,
              Risk.coef=ntwk[['val']][[v]]$Subj.risk[ntwk[['val']][[v]]$Subj.risk$to==root,'Risk.coef'],
-             to=root) %>% select(to,Risk.coef,tot.trust,lent,rate,security)
+             to=root) %>% select(to,Risk.coef,tot.trust,lent,rate,security) %>%
+      filter(!is.nan(rate))
     
     #append
     ntwk[['val']][[v]]$Portfolio <- rbind(ntwk[['val']][[v]]$Portfolio,sumDF.bond)
@@ -914,6 +837,8 @@ loan.frwdProp <-  function(ntwk,root,S.list,Amt,Rate,Collateral,
     
     #Update
     ntwk[['val']][[v]]$Portfolio.corr <- corr.mtx
+    ntwk$val[[v]]$Assets <- ntwk$val[[v]]$Assets %>% filter(amount!=0)
+    ntwk$val[[v]]$Liabilities <- ntwk$val[[v]]$Liabilities %>% filter(amount!=0)
   }
   
   #Update edges

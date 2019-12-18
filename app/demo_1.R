@@ -87,10 +87,11 @@ output$pageStub <- renderUI({rv$limn; isolate({
           fluidRow(
             column(8, offset=1,
                    HTML("<h3 style='margin-bottom: 1em;'>Welcome to Arboreum!</h4>"),
-                   HTML("Backstory - Hi there! Welcome to our demo.<p> In this first step you will be joining the Arboreum network.<p>
-                          To start, you must decide how much money you would like to put in.<br>
-                          Next you will decide what is the maximum amount of an unsecured loan you are willing to give to four hypothetical friends/business colleagues.<br><br>
-                          NOTE: you can extend your given trust amount to <i>each</i> of the people below, should you choose: your credit is only utilised if someone explicitly requests it.")
+                   HTML("Backstory - Hi there! Welcome to the Arboreum V0.1 demo!<p> We will be walking through the various actions that can be taken by actors on the network, to give you an idea of how we envision it being used in practice.<p>
+                          For this particular version of the demo, we have fixed the variables in place for illustrative purposes, but future versions of this demo will include increasing degrees of freedom.<br>This is due to compute time in our alpha stage - computations can regularly take 30 minutes or longer.<br><br>
+                          To start, we must decide how much money we would like to put into the network.<br>
+                          Next, we decide the maximum limit of unsecured funds you are willing to loan to four hypothetical friends/business colleagues.<br><br>
+                          NOTE: you can extend a limit equal to your total funds to <i>each</i> of the people below, should you choose.<br>Your credit is only utilised/affected if someone explicitly requests a loan which falls within your selected risk parameters.")
             )
           ),
           fluidRow( column(4, offset=1, numericInput("amountDeposit", "Amount To Deposit:", value=750, width= "30%") ) ),
@@ -98,23 +99,23 @@ output$pageStub <- renderUI({rv$limn; isolate({
           column(6, offset = 1, wellPanel(fluidRow(column(1, offset=0, imageOutput("mackImage",     height=120)),
                                                    column(5, offset=2,
                                                           HTML("<h3>Mack</h3>"),
-                                                          HTML("PROFILE<p>"),
-                                                          numericInput("mackTrust", "Credit To Extend To Mack:", value = 325, width = "100%"))))),
+                                                          HTML("Well-connected ex-deputy director UN civil servant with several years of past experience in hardship posts worldwide.<br><br>Financially reliable, has contacts in developing nations working on sustainability development goals.<p>"),
+                                                          numericInput("mackTrust", "Maximum Credit To Extend To Mack:", value = 325, width = "100%"))))),
           column(6, offset = 1, wellPanel(fluidRow(column(1, offset=0, imageOutput("gauravImage",   height=120)),
                                                    column(5, offset=2,
                                                           HTML("<h3>Gaurav</h3>"),
-                                                          HTML("PROFILE<p>"),
-                                                          numericInput("gauravTrust", "Credit To Extend To Gaurav:", value = 225, width = "100%"))))),
+                                                          HTML("Itinerant paper-writing economic consultant who recently spent five years working at the UN World Food Programme.<br><br>Tends to take out loans to advertise latest business endeavours without having a solid strategy in place.<br><br><p>"),
+                                                          numericInput("gauravTrust", "Maximum Credit To Extend To Gaurav:", value = 225, width = "100%"))))),
           column(6, offset = 1, wellPanel(fluidRow(column(1, offset=0, imageOutput("laurenceImage", height=120)),
                                                    column(5, offset=2,
                                                           HTML("<h3>Laurence</h3>"),
-                                                          HTML("PROFILE<p>"),
-                                                          numericInput("laurenceTrust", "Credit To Extend To Laurence:", value = 175, width = "100%"))))),
+                                                          HTML("Ideological mathematician/technologist who previously worked in finance more interested in the social concept of money than its' value.<br><br>Known socially for both his profligacy and bouncing between several projects simultaneously.<p>"),
+                                                          numericInput("laurenceTrust", "Maximum Credit To Extend To Laurence:", value = 175, width = "100%"))))),
           column(6, offset = 1, wellPanel(fluidRow(column(1, offset=0, imageOutput("pranavImage",   height=120)),
                                                    column(5, offset=2,
                                                           HTML("<h3>Pranav</h3>"),
-                                                          HTML("PROFILE<p>"),
-                                                          numericInput("pranavTrust", "Credit To Extend To Pranav:", value = 275, width = "100%"))))),
+                                                          HTML("Mature student currently attending Columbia University for his Masters in Public Policy degree after a stint in finance.<br><br>Has successfully designed, implemented and delivered upon several charity initiatives in the past, and as a result has several charity contacts.<p>"),
+                                                          numericInput("pranavTrust", "Maximum Credit To Extend To Pranav:", value = 275, width = "100%"))))),
           fluidRow(column(6, offset = 1, actionButton("stage2", label="Proceed")))
         )
       }

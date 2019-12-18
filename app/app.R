@@ -4,12 +4,25 @@
 
 ### libraries
 library(shiny)
+library(shinyjs)
 library(stringr)
 library(lubridate)
 library(bcrypt)        # 2 commands, hashpw("password") and checkpw("password", hash)
 library(aws.signature)
 
 TF.tidy = require(tidyverse)
+
+#Force fullscreen via JavaScript
+jsToggleFS <- 'shinyjs.toggleFullScreen = function() {
+    var element = document.documentElement,
+      enterFS = element.requestFullscreen || element.msRequestFullscreen || element.mozRequestFullScreen || element.webkitRequestFullscreen,
+      exitFS = document.exitFullscreen || document.msExitFullscreen || document.mozCancelFullScreen || document.webkitExitFullscreen;
+    if (!document.fullscreenElement && !document.msFullscreenElement && !document.mozFullScreenElement && !document.webkitFullscreenElement) {
+      enterFS.call(element);
+    } else {
+      exitFS.call(document);
+    }
+  }'
 
 ### initializations
 
@@ -55,6 +68,7 @@ SESemail <- function(message,
                      ...) {
   
   query <- list(Source = from)
+  
   
   # configure message body and subject
   query[["Action"]] <- "SendEmail"
@@ -156,6 +170,9 @@ site_pages <- rbind(site_pages, tibble(name="lostpassword", sp=0))
 site_pages <- rbind(site_pages, tibble(name="demo_1",       sp=1))
 site_pages <- rbind(site_pages, tibble(name="demo_2",       sp=1))
 site_pages <- rbind(site_pages, tibble(name="demo_3",       sp=1))
+site_pages <- rbind(site_pages, tibble(name="demo_4",       sp=1))
+site_pages <- rbind(site_pages, tibble(name="demo_5",       sp=1))
+site_pages <- rbind(site_pages, tibble(name="demo_6",       sp=1))
 site_pages <- rbind(site_pages, tibble(name="admin",        sp=500))   # only users with sp>=500 can open this page
 
 pageGet <- function(webpage) {
@@ -201,6 +218,8 @@ generate_code <- function() {
 ### This is the ui for WHAT'S THE SAME on all pages of the site; it ends with a stub that the rest
 ###    of the ui is attached to by (possibly nested) render functions inside the server function.
 ui <- fluidPage(
+  useShinyjs(),
+  extendShinyjs(text = jsToggleFS),
   title=site_name,
   tagList(
     tags$head(
@@ -269,7 +288,6 @@ server <- function(input, output, session) {
   session$userData$preCookedVersion  <- FALSE
   session$userData$loanRowIndex      <- 0
   session$userData$loanColIndex      <- 0
-  output$loanGrid      <- DT::renderDataTable(as.data.frame(matrix(0, ncol = 10, nrow = 10)), colnames = seq(1, 10, 1), selection=list(target='cell'))
   output$loanDetails <- renderText({"You haven't selected a desired loan yet."})
   
   # Functions for running javascript on the browser
@@ -384,7 +402,7 @@ server <- function(input, output, session) {
     webpage <- "?home"                                 #    ...null means issues to solve
     cat("\nWARNING: session$clientData$url_search was null, substituting home.R\n\n")
   }
-  if(webpage=="") { webpage <- "?demo_1" }                # blank means home page
+  if(webpage=="") { webpage <- "?demo_3" }                # blank means home page
   webpage <- substr(webpage, 2, nchar(webpage))         # remove leading "?", add ".R"
   p <- pageGet(webpage)
   if(p$name != ""){                                     # is that one of our files?

@@ -16,7 +16,7 @@ utils     <- modules::use(here::here("ShinyApps/Arboreum/app/src/Utils.R"))
 #'
 #' @examples
 correlationUpdate <- function(ntwk, v, v.new = c(), p.bwidth = NULL, p.scale = 1, direction = 'out') {
-  
+
   if(is.data.frame(ntwk[['val']][[v]]$Assets)) {
     df <- ntwk[['val']][[v]]$Assets
     v.ptfl <- sort(c(df$borrower, v.new))
@@ -55,5 +55,9 @@ correlationUpdate <- function(ntwk, v, v.new = c(), p.bwidth = NULL, p.scale = 1
     , error = function(e) {browser()})
   rownames(corr.mtx) <- colnames(corr.mtx) <- v.ptfl
   rm(krn.mtx)
+  
+  #ensure when multiple assets from same borrowers row/cols have correlation=1
+  indx <- matrix(with(expand.grid(abs(as.numeric(rownames(corr.mtx))),abs(as.numeric(colnames(corr.mtx)))),Var1==Var2),dim(corr.mtx))
+  corr.mtx[indx] <- 1
   return (corr.mtx)
 }

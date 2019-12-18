@@ -186,7 +186,7 @@ initializeSheets <- function(ntwk, K, A0 = 1000, phi.a = 3, phi.b = 5, eps = 0.1
   set.vertex.attribute(ntwk, 'Assets', NA)
   set.vertex.attribute(ntwk, 'Liabilities', NA)
   for(v in c(1:n.vrt)) {
-    if(is.na(ntwk[['val']][[v]]$Assets)){
+    if(!is.data.frame(ntwk[['val']][[v]]$Assets)){
       ntwk[['val']][[v]]$Assets <- data.frame(borrower = numeric(),
                                               via = numeric(),
                                               via.trust = numeric(),
@@ -197,7 +197,7 @@ initializeSheets <- function(ntwk, K, A0 = 1000, phi.a = 3, phi.b = 5, eps = 0.1
                                               type=character())
     }
     
-    if(is.na(ntwk[['val']][[v]]$Liabilities)){
+    if(!is.data.frame(ntwk[['val']][[v]]$Liabilities)){
       ntwk[['val']][[v]]$Liabilities <- data.frame(borrower = numeric(),
                                                    via = numeric(),
                                                    lender = numeric(),
@@ -206,6 +206,9 @@ initializeSheets <- function(ntwk, K, A0 = 1000, phi.a = 3, phi.b = 5, eps = 0.1
                                                    security = numeric(),
                                                    type=character())
     }
+    #if(!is.data.frame(ntwk[['val']][[v]]$Portfolio)){
+    #  ntwk[['val']][[v]]$Portfolio <- data.frame(to=numeric(), lent=numeric(), rate=numeric(),security=numeric())
+    #}
     
     if(!all(is.na(ntwk[['val']][[v]]$Portfolio))){
       ntwk[['val']][[v]]$Assets[c(1:nrow(ntwk[['val']][[v]]$Portfolio)),
