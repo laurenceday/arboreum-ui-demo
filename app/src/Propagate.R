@@ -4,11 +4,11 @@ import(doParallel)
 import(bigmemory)
 import(foreach)
 
-utils    <- modules::use(here::here("ShinyApps/Arboreum/app/src/Utils.R"))
+utils    <- modules::use(here::here("src/Utils.R"))
 
-kumaraswamy <- modules::use(here::here("ShinyApps/Arboreum/app/src/Kumaraswamy.R"))
+kumaraswamy <- modules::use(here::here("src/Kumaraswamy.R"))
 
-correlation <- modules::use(here::here("ShinyApps/Arboreum/app/src/PortfolioCorrelation.R"))
+correlation <- modules::use(here::here("src/PortfolioCorrelation.R"))
 
 #' Solves individual (node-specific) consumption function for a hypothetical loan originated by a borrower somewhere in the network
 #' by solving portfolio optimization over a mesh of Interest Rates and Securitization ratios

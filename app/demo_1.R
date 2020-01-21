@@ -45,82 +45,35 @@ output$pageStub <- renderUI({rv$limn; isolate({
   if(page_debug_on) {
     cat(paste0("Rendering ", webpage$name, " v.", rv$limn, "\n"))
   }
-  if(session$userData$user$sp==0) {      # not logged in; return registration inputs
-    pageText <- tagList(
-      fluidRow(
-        column(4, offset=4,
-               ttextInput("username", "User Name:", value="", style="width: 100%;", autofocus=TRUE),
-               passwordInput("password1", "Password:", value=""),
-               passwordInput("password2", "Repeat Password:", value=""),
-               ttextInput("email", "Email address (for account verification):", value="", style="width: 100%;"),
-               actionButton("register_btn", "Register", class="btn-primary btn-sm",
-                            style="display: block; margin-top: 2em; margin-left: auto; margin-right: auto;")
-        )
+  pageText <- tagList(
+    fluidRow(
+      column(8, offset=1,
+             HTML("<h3 style='margin-bottom: 1em;'>Committing Funds</h4>"),
+             HTML("To start, we decide how much money you want to commit to the network.<br><br>Think of these as funds you wish to deposit into a Fixed Deposit account at your local bank.<br><br>
+                        Next, we decide the maximum limit of unsecured credit you are willing to loan to four friends.<br><br> In future iterations, you will also set your risk tolerance via a small questionnaire.<br><br>
+                        NOTE: you can extend the entirety of your funds to <i>each</i> of the people below, should you choose.<br><br>Your funds are only utilised if you participate in funding a loan which falls within your risk parameters.<br><br>")
       )
-    )
-  } else {                               # logged in but email unverified, send email and return verification inputs
-    if(session$userData$user$sp && !session$userData$user$emailverified) {
-      session$userData$tempcode <- generate_code()
-      if(session$userData$fixingemail) {           # if email is already verified, user is changing email address
-        send.email(session$userData$user$username, session$userData$user$email,
-                   paste0("Code to verify your ", site_name," account."),
-                   paste0("Here's the code you must enter to change your ", site_name," email address: ", session$userData$tempcode))
-      } else {                                     #    otherwise user is verifing email address for a new account
-        send.email(session$userData$user$username, session$userData$user$email,
-                   paste0("Code to verify your new ", site_name," account."),
-                   paste0("Here's the code you must enter to complete your ", site_name," registration: ", session$userData$tempcode))
-      }
-      pageText <- tagList(
-        fluidRow(
-          column(6, offset=3,
-                 HTML(paste0(
-                   "<h3>Almost there...</h3><p>We've just sent an email to <b>", session$userData$user$email,
-                   "</b> with a 6-digit temporarty PIN. To complete your registration, ",
-                   "enter the PIN here and click the OK button.</p>"))
-          )
-        )
-      )
-    } else {                            # logged in and email verified; show profile update inputs
-      if(session$userData$user$sp) {
-        session$userData$fixingemail <- TRUE
-        pageText <- tagList(
-          fluidRow(
-            column(8, offset=1,
-                   HTML("<h3 style='margin-bottom: 1em;'>Welcome to Arboreum!</h4>"),
-                   HTML("Backstory - Hi there! Welcome to the Arboreum V0.1 demo!<p> We will be walking through the various actions that can be taken by actors on the network, to give you an idea of how we envision it being used in practice.<p>
-                          For this particular version of the demo, we have fixed the variables in place for illustrative purposes, but future versions of this demo will include increasing degrees of freedom.<br>This is due to compute time in our alpha stage - computations can regularly take 30 minutes or longer.<br><br>
-                          To start, we must decide how much money we would like to put into the network.<br>
-                          Next, we decide the maximum limit of unsecured funds you are willing to loan to four hypothetical friends/business colleagues.<br><br>
-                          NOTE: you can extend a limit equal to your total funds to <i>each</i> of the people below, should you choose.<br>Your credit is only utilised/affected if someone explicitly requests a loan which falls within your selected risk parameters.")
-            )
-          ),
-          fluidRow( column(4, offset=1, numericInput("amountDeposit", "Amount To Deposit:", value=750, width= "30%") ) ),
-          
-          column(6, offset = 1, wellPanel(fluidRow(column(1, offset=0, imageOutput("mackImage",     height=120)),
-                                                   column(5, offset=2,
-                                                          HTML("<h3>Mack</h3>"),
-                                                          HTML("Well-connected ex-deputy director UN civil servant with several years of past experience in hardship posts worldwide.<br><br>Financially reliable, has contacts in developing nations working on sustainability development goals.<p>"),
-                                                          numericInput("mackTrust", "Maximum Credit To Extend To Mack:", value = 325, width = "100%"))))),
-          column(6, offset = 1, wellPanel(fluidRow(column(1, offset=0, imageOutput("gauravImage",   height=120)),
-                                                   column(5, offset=2,
-                                                          HTML("<h3>Gaurav</h3>"),
-                                                          HTML("Itinerant paper-writing economic consultant who recently spent five years working at the UN World Food Programme.<br><br>Tends to take out loans to advertise latest business endeavours without having a solid strategy in place.<br><br><p>"),
-                                                          numericInput("gauravTrust", "Maximum Credit To Extend To Gaurav:", value = 225, width = "100%"))))),
-          column(6, offset = 1, wellPanel(fluidRow(column(1, offset=0, imageOutput("laurenceImage", height=120)),
-                                                   column(5, offset=2,
-                                                          HTML("<h3>Laurence</h3>"),
-                                                          HTML("Ideological mathematician/technologist who previously worked in finance more interested in the social concept of money than its' value.<br><br>Known socially for both his profligacy and bouncing between several projects simultaneously.<p>"),
-                                                          numericInput("laurenceTrust", "Maximum Credit To Extend To Laurence:", value = 175, width = "100%"))))),
-          column(6, offset = 1, wellPanel(fluidRow(column(1, offset=0, imageOutput("pranavImage",   height=120)),
-                                                   column(5, offset=2,
-                                                          HTML("<h3>Pranav</h3>"),
-                                                          HTML("Mature student currently attending Columbia University for his Masters in Public Policy degree after a stint in finance.<br><br>Has successfully designed, implemented and delivered upon several charity initiatives in the past, and as a result has several charity contacts.<p>"),
-                                                          numericInput("pranavTrust", "Maximum Credit To Extend To Pranav:", value = 275, width = "100%"))))),
-          fluidRow(column(6, offset = 1, actionButton("stage2", label="Proceed")))
-        )
-      }
-    }
-  }
+    ),
+    fluidRow( column(8, offset=1, numericInput("amountDeposit", "USD Amount To Deposit: [Demo V0.1: Fixed Values]", value=750, width= "30%") ) ),
+    
+    column(4, offset = 1, wellPanel(fluidRow(column(1, offset=0, imageOutput("mackImage",     height=120)),
+                                             column(4, offset=2,
+                                                    HTML("<h3>Mack</h3>"),
+                                                    numericInput("mackTrust", "Credit To Mack", value = 325, width = "100%"))))),
+    column(4, offset = 0, wellPanel(fluidRow(column(1, offset=0, imageOutput("gauravImage",   height=120)),
+                                             column(4, offset=2,
+                                                    HTML("<h3>Gaurav</h3>"),
+                                                    numericInput("gauravTrust", "Credit To Gaurav", value = 225, width = "100%"))))),
+    column(4, offset = 1, wellPanel(fluidRow(column(1, offset=0, imageOutput("laurenceImage", height=120)),
+                                             column(4, offset=2,
+                                                    HTML("<h3>Laurence</h3>"),
+                                                    numericInput("laurenceTrust", "Credit To Laurence", value = 175, width = "100%"))))),
+    column(4, offset = 0, wellPanel(fluidRow(column(1, offset=0, imageOutput("pranavImage",   height=120)),
+                                             column(4, offset=2,
+                                                    HTML("<h3>Pranav</h3>"),
+                                                    numericInput("pranavTrust", "Credit To Pranav", value = 275, width = "100%"))))),
+    fluidRow(column(6, offset = 1, actionButton("stage2", label="Proceed")))
+  )
   return(pageText)     # This is an "explicit return". Remeber that renderUI() is an R function!
 })})                    #    Shiny expects renderUI to return some text, which may have embedded
 #    HTML. Although Shiny examples rarely use it, if you include an

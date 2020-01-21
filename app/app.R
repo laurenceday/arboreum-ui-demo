@@ -31,7 +31,7 @@ jsToggleFS <- 'shinyjs.toggleFullScreen = function() {
 #    The sample file included in the Git-Hub distribution is blank; nothing will work
 #       until you supply the missing information and move it to the app's parent directory or elsewhere.
 
-source(here::here("ShinyApps/credentials.R"), local=TRUE)
+source(here::here("credentials.R"), local=TRUE)
 
 # Note: to make sure this file can't be served up on your web server, you can
 #    move it into the parent folder of your server root like this:
@@ -167,12 +167,14 @@ site_pages <- rbind(site_pages, tibble(name="login",        sp=0))     # in term
 site_pages <- rbind(site_pages, tibble(name="logout",       sp=0))     #    required to open the page.
 site_pages <- rbind(site_pages, tibble(name="profile",      sp=0))
 site_pages <- rbind(site_pages, tibble(name="lostpassword", sp=0))
-site_pages <- rbind(site_pages, tibble(name="demo_1",       sp=1))
-site_pages <- rbind(site_pages, tibble(name="demo_2",       sp=1))
-site_pages <- rbind(site_pages, tibble(name="demo_3",       sp=1))
-site_pages <- rbind(site_pages, tibble(name="demo_4",       sp=1))
-site_pages <- rbind(site_pages, tibble(name="demo_5",       sp=1))
-site_pages <- rbind(site_pages, tibble(name="demo_6",       sp=1))
+site_pages <- rbind(site_pages, tibble(name="demo_0",       sp=0))
+site_pages <- rbind(site_pages, tibble(name="demo_1",       sp=0))
+site_pages <- rbind(site_pages, tibble(name="demo_2",       sp=0))
+site_pages <- rbind(site_pages, tibble(name="demo_3",       sp=0))
+site_pages <- rbind(site_pages, tibble(name="demo_4",       sp=0))
+site_pages <- rbind(site_pages, tibble(name="demo_5",       sp=0))
+site_pages <- rbind(site_pages, tibble(name="demo_6",       sp=0))
+site_pages <- rbind(site_pages, tibble(name="demo_7",       sp=0))
 site_pages <- rbind(site_pages, tibble(name="admin",        sp=500))   # only users with sp>=500 can open this page
 
 pageGet <- function(webpage) {
@@ -364,7 +366,7 @@ server <- function(input, output, session) {
   output$uiStub <- renderUI(tagList(
     fluidRow(
       column(4,
-             HTML("<h5>", site_name, "</h5>")
+             HTML("")
       ),
       column(8,
              HTML(topmenu())
@@ -379,17 +381,7 @@ server <- function(input, output, session) {
   #      until then, session$userData$user will be null.
   topmenu <- eventReactive(rv$cookies_baked, {
     if(rv$cookies_baked>0) {                           # skip initialization run
-      if(session$userData$user$sp==0) {
-        d <- "<a href='?login'>Login</a>"
-      } else {
-        d <- "<a href='?logout'>Logout</a>"
-      }
-      if(session$userData$user$sp >=500) {
-        d <- paste0(d, " | <a href='?admin'>Admin</a>")
-      }
-      return(paste0("<h5 style='float: right;'><a href='?demo_1'>Demo</a> | ",
-                    d,
-                    "</h5>"))
+      return(paste0("<h5 style='float: right;'><a href='?demo_1'>Back To Demo Start</a></h5>"))
     }
   })
   
@@ -402,7 +394,7 @@ server <- function(input, output, session) {
     webpage <- "?home"                                 #    ...null means issues to solve
     cat("\nWARNING: session$clientData$url_search was null, substituting home.R\n\n")
   }
-  if(webpage=="") { webpage <- "?demo_3" }                # blank means home page
+  if(webpage=="") { webpage <- "?demo_0" }              # blank means home page
   webpage <- substr(webpage, 2, nchar(webpage))         # remove leading "?", add ".R"
   p <- pageGet(webpage)
   if(p$name != ""){                                     # is that one of our files?

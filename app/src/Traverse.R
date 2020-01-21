@@ -7,7 +7,7 @@ import(bigmemory)
 import(foreach)
 import(predictionet)
 
-utils    <- modules::use(here::here("ShinyApps/Arboreum/app/src/Utils.R"))
+utils    <- modules::use(here::here("src/Utils.R"))
 
 #' Traverse network and calculate how trust cascades
 #' see Sun, Zhu, Han (2006) Information Theoretic Framework for Trust Modeling for equations to update trust

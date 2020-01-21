@@ -4,10 +4,10 @@ import(MCMCpack)
 import(network)
 import(stats)
 
-correlation <- modules::use(here::here("ShinyApps/Arboreum/app/src/PortfolioCorrelation.R"))
-trustRisk <- modules::use(here::here("ShinyApps/Arboreum/app/src/TrustToRisk.R"))
-traverse <- modules::use(here::here("ShinyApps/Arboreum/app/src/Traverse.R"))
-utils    <- modules::use(here::here("ShinyApps/Arboreum/app/src/Utils.R"))
+correlation <- modules::use(here::here("src/PortfolioCorrelation.R"))
+trustRisk <- modules::use(here::here("src/TrustToRisk.R"))
+traverse <- modules::use(here::here("src/Traverse.R"))
+utils    <- modules::use(here::here("src/Utils.R"))
 
 #Add node
 addNode2Ntwk <- function(ntwk,risk.array,assets,out.DF,in.DF=NULL,direction='in'){

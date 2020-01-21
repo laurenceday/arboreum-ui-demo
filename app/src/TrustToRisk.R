@@ -1,6 +1,6 @@
 import(stats)
 
-portfolio <- modules::use(here::here("ShinyApps/Arboreum/app/src/PortfolioCorrelation.R"))
+portfolio <- modules::use(here::here("src/PortfolioCorrelation.R"))
 
 #' Computes a binomial probability for "Trust" of a node given the below information
 #'

@@ -1,6 +1,6 @@
 import(Matrix)
 
-utils     <- modules::use(here::here("ShinyApps/Arboreum/app/src/Utils.R"))
+utils     <- modules::use(here::here("src/Utils.R"))
 
 #' Computes/Updates correlation matrix of the portfolio of assets (loans made to others) for vertex in network
 #'

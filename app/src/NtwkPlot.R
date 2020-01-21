@@ -7,7 +7,7 @@ import(networkD3)
 import(grDevices)
 import(RColorBrewer)
 
-utils <- modules::use(here::here("ShinyApps/Arboreum/app/src/Utils.R"))
+utils <- modules::use(here::here("src/Utils.R"))
 
 #' Title
 #' 
@@ -185,13 +185,13 @@ movie.D3 <- function(ntwk,trgt,transactions,file_name,
       indx.bond <- which(with(ptfl,is.na(tot.trust) & to==trgt & security>0))
       indx.hdge <- which(with(ptfl,is.na(tot.trust) & to==trgt & security<0))
       if (length(indx.bond)>0){
-        tot.risk <- sum(with(ptfl,c(lent[indx.bond],lent[indx.hdge]*abs(security[indx.hdge]))),na.rm = TRUE)
-        tot.prft <- sum(with(ptfl,c(lent[indx.bond]*abs(rate[indx.bond]),lent[indx.hdge]*abs(rate[indx.hdge]))),na.rm = TRUE)
-        tot.scrt <- sum(with(ptfl,c(lent[indx.bond]*abs(security[indx.bond]))),na.rm = TRUE)
+        tot.risk <- sum(with(ptfl,c(lent[indx.bond])),na.rm = TRUE) #May need fixing
+        tot.prft <- sum(with(ptfl,c(lent[indx.bond]*abs(rate[indx.bond]-1),lent[indx.hdge]*abs(rate[indx.hdge]))),na.rm = TRUE)
+        tot.scrt <- sum(with(ptfl,c(lent[indx.bond]*abs(security[indx.bond]),lent[indx.hdge]*security[indx.hdge])),na.rm = TRUE)
         
         eff.rate <- tot.prft/tot.risk#ptfl$lent[indx.bond]
         eff.scrt <- tot.scrt/tot.risk
-        eff.rar <- tot.prft/(tot.risk-tot.scrt)
+        eff.rar  <- tot.prft/(tot.risk-tot.scrt)
         return(c(eff.rate,eff.scrt,eff.rar))
       }
     }

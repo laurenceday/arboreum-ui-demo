@@ -4,9 +4,9 @@ import(extraDistr)
 import(predictionet)
 import(network)
 
-kumaraswamy <- modules::use(here::here("ShinyApps/Arboreum/app/src/Kumaraswamy.R"))
-correlation <- modules::use(here::here("ShinyApps/Arboreum/app/src/PortfolioCorrelation.R"))
-trustRisk <- modules::use(here::here("ShinyApps/Arboreum/app/src/TrustToRisk.R"))
+kumaraswamy <- modules::use(here::here("src/Kumaraswamy.R"))
+correlation <- modules::use(here::here("src/PortfolioCorrelation.R"))
+trustRisk <- modules::use(here::here("src/TrustToRisk.R"))
 
 #' Initialize Trust, Equity, amounted entrusted, rececived, and borrowed for network
 #'
